@@ -80,7 +80,7 @@ export default function TrendingProjects() {
 
     const scroll = () => {
       if (!isHovered && !isDragging && container) {
-        container.scrollLeft += 1.5; // Slightly faster scroll
+        container.scrollLeft += 2.5;
         // Reset scroll position to create an infinite effect
         // We rendered the list twice, so when we reach the end of the first list, we instantly jump back to the start.
         if (container.scrollLeft >= container.scrollWidth / 2) {
