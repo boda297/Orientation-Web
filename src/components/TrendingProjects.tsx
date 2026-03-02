@@ -66,7 +66,7 @@ export default function TrendingProjects() {
     const container = scrollContainerRef.current;
     if (!container || projects.length === 0) return;
 
-    let animationId: number;
+    let intervalId: NodeJS.Timeout;
     let isHovered = false;
 
     const handleMouseEnter = () => isHovered = true;
@@ -78,31 +78,46 @@ export default function TrendingProjects() {
     container.addEventListener('mouseenter', handleMouseEnter);
     container.addEventListener('mouseleave', handleMouseLeave);
 
-    const scroll = () => {
+    const autoScroll = () => {
       if (!isHovered && !isDragging && container) {
-        container.scrollLeft += 2.5;
-        // Reset scroll position to create an infinite effect
-        // We rendered the list twice, so when we reach the end of the first list, we instantly jump back to the start.
-        if (container.scrollLeft >= container.scrollWidth / 2) {
+        const firstChild = container.children[0] as HTMLElement;
+        const scrollAmount = firstChild ? firstChild.offsetWidth + 24 : 300;
+
+        if (container.scrollLeft >= container.scrollWidth / 2 - scrollAmount) {
+          // Reset instantly
+          container.style.scrollBehavior = 'auto';
           container.scrollLeft = 0;
+          
+          setTimeout(() => {
+            if (container) {
+              container.style.scrollBehavior = 'smooth';
+              container.scrollLeft += scrollAmount;
+            }
+          }, 50);
+        } else {
+          container.style.scrollBehavior = 'smooth';
+          container.scrollLeft += scrollAmount;
         }
       }
-      animationId = requestAnimationFrame(scroll);
     };
 
-    animationId = requestAnimationFrame(scroll);
+    intervalId = setInterval(autoScroll, 5000);
 
     return () => {
       container.removeEventListener('mouseenter', handleMouseEnter);
       container.removeEventListener('mouseleave', handleMouseLeave);
-      cancelAnimationFrame(animationId);
+      clearInterval(intervalId);
+      if (container) container.style.scrollBehavior = 'auto';
     };
   }, [projects.length, isDragging]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
-    setStartX(e.pageX - (scrollContainerRef.current?.offsetLeft || 0));
-    setScrollLeft(scrollContainerRef.current?.scrollLeft || 0);
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.style.scrollBehavior = 'auto';
+      setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+      setScrollLeft(scrollContainerRef.current.scrollLeft);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -137,7 +152,7 @@ export default function TrendingProjects() {
       <h2 className="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8 pl-4 md:pl-6">Top 10</h2>
       <div
         ref={scrollContainerRef}
-        className={`flex gap-4 md:gap-6 overflow-x-auto pb-12 md:pb-16 pt-2 scrollbar-hide scroll-smooth ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+        className={`flex gap-4 md:gap-6 overflow-x-auto pb-12 md:pb-16 pt-2 scrollbar-hide ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
         style={{ width: '100vw', marginLeft: 'calc(-50vw + 50%)' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}

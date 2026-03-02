@@ -71,12 +71,9 @@ export default function Header() {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center justify-center gap-4 lg:gap-6 flex-1">
+            <nav className="hidden lg:flex items-center justify-center gap-4 lg:gap-6 flex-1">
               <Link href="/" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
                 Home
-              </Link>
-              <Link href="/about" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
-                About Us
               </Link>
               <Link href="/areas" onClick={(e) => handleProtectedNav(e, '/areas')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
                 Area
@@ -89,6 +86,9 @@ export default function Header() {
               </Link>
               <Link href="/tv" onClick={(e) => handleProtectedNav(e, '/tv')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
                 TV
+              </Link>
+              <Link href="/about" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
+                About Us
               </Link>
             </nav>
 
@@ -117,7 +117,7 @@ export default function Header() {
                 isLoggedIn ? (
                   <button
                     onClick={handleLogout}
-                    className="hidden md:inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-zinc-800 hover:bg-red-600 border border-transparent rounded-full transition-colors"
+                    className="hidden lg:inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-zinc-800 hover:bg-red-600 border border-transparent rounded-full transition-colors"
                     title="Log out"
                   >
                     Log out
@@ -125,7 +125,7 @@ export default function Header() {
                 ) : (
                   <Link
                     href="/login"
-                    className="hidden md:inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#ff0000] hover:bg-red-700 border border-transparent rounded-full transition-colors"
+                    className="hidden lg:inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-[#ff0000] hover:bg-red-700 border border-transparent rounded-full transition-colors"
                   >
                     Log in
                   </Link>
@@ -135,7 +135,7 @@ export default function Header() {
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden w-10 h-10 flex items-center justify-center text-white"
+                className="lg:hidden w-10 h-10 flex items-center justify-center text-white"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {mobileMenuOpen ? (
@@ -150,12 +150,9 @@ export default function Header() {
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <nav className="md:hidden mt-4 pb-4 space-y-3">
+            <nav className="lg:hidden mt-4 pb-4 space-y-3">
               <Link href="/" className="block text-white hover:text-red-600 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
                 Home
-              </Link>
-              <Link href="/about" className="block text-white hover:text-red-600 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
-                About Us
               </Link>
               <Link href="/areas" className="block text-white hover:text-red-600 transition-colors py-2" onClick={(e) => { handleProtectedNav(e, '/areas'); setMobileMenuOpen(false); }}>
                 Area
@@ -168,6 +165,9 @@ export default function Header() {
               </Link>
               <Link href="/tv" className="block text-white hover:text-red-600 transition-colors py-2" onClick={(e) => { handleProtectedNav(e, '/tv'); setMobileMenuOpen(false); }}>
                 TV
+              </Link>
+              <Link href="/about" className="block text-white hover:text-red-600 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+                About Us
               </Link>
               {/* Mobile Auth Buttons */}
               {hasMounted && (
