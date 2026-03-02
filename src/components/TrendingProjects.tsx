@@ -101,7 +101,7 @@ export default function TrendingProjects() {
       }
     };
 
-    intervalId = setInterval(autoScroll, 5000);
+    intervalId = setInterval(autoScroll, 3000);
 
     return () => {
       container.removeEventListener('mouseenter', handleMouseEnter);

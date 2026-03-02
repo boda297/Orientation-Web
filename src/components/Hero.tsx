@@ -268,12 +268,12 @@ export default function Hero() {
             </div>
 
             {/* Slide Project Info - Bottom Left */}
-            <div className="absolute bottom-40 sm:bottom-44 md:bottom-20 left-4 md:left-8 z-20 max-w-[80%] md:max-w-md pointer-events-none">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-1 md:mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-tight">
+            <div className="hidden md:block absolute md:bottom-20 md:left-8 z-20 md:max-w-md pointer-events-none">
+              <h2 className="md:text-4xl lg:text-5xl font-bold text-white md:mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-tight">
                 {project.title}
               </h2>
               {project.location && (
-                <p className="text-base md:text-xl text-gray-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-medium">
+                <p className="md:text-xl text-gray-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-medium">
                   {project.location}
                 </p>
               )}
