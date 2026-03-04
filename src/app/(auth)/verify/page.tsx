@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import AuthLogo from '@/components/AuthLogo';
 import { authApi, setAuthCookies } from '@/lib/auth';
 
-export default function VerifyPage() {
+function VerifyContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -169,5 +169,17 @@ export default function VerifyPage() {
                 </button>
             </div>
         </div>
+    );
+}
+
+export default function VerifyPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col animate-in fade-in duration-500 justify-center items-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+            </div>
+        }>
+            <VerifyContent />
+        </Suspense>
     );
 }

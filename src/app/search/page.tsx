@@ -30,7 +30,9 @@ interface WatchHistoryItem {
 
 type TabType = 'All' | 'Projects' | 'Developers' | 'Areas';
 
-export default function SearchPage() {
+import { Suspense } from 'react';
+
+function SearchContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const initialQuery = searchParams.get('q') || '';
@@ -336,5 +338,17 @@ export default function SearchPage() {
             </main>
             <Footer />
         </div>
+    );
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-black text-white flex justify-center items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            </div>
+        }>
+            <SearchContent />
+        </Suspense>
     );
 }
