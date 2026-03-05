@@ -101,7 +101,7 @@ function VerifyContent() {
         try {
             if (purpose === 'register') {
                 // According to docs: POST /auth/resend-verification
-                await fetch(process.env.NEXT_PUBLIC_API_URL + '/auth/resend-verification', {
+                await fetch(process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/auth/resend-verification` : '/api-proxy/auth/resend-verification', {
                     method: 'POST', body: JSON.stringify({ email }), headers: { 'Content-Type': 'application/json' }
                 });
             } else {
