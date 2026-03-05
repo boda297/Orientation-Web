@@ -1,5 +1,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api-proxy';
 
+
+
 // Helper function to build full URL
 export const getApiUrl = (endpoint: string) => {
   return `${API_BASE_URL}${endpoint}`;
