@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.orientationapps.com';
+const API_BASE_URL = 'https://api.orientationapps.com';
 
 // Helper function to build full URL
 export const getApiUrl = (endpoint: string) => {
