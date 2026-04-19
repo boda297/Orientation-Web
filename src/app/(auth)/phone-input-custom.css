@@ -1,0 +1,90 @@
+/* Custom overrides for react-phone-input-2 to fit our dark theme */
+.react-tel-input .flag-dropdown {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 1.25rem 0 0 1.25rem !important;
+}
+
+.react-tel-input .flag-dropdown.open {
+  background-color: transparent !important;
+  border-radius: 1.25rem 0 0 1.25rem !important;
+}
+
+.react-tel-input .flag-dropdown:hover {
+  background-color: transparent !important;
+}
+
+.react-tel-input .selected-flag {
+  background-color: transparent !important;
+}
+
+.react-tel-input .selected-flag:hover,
+.react-tel-input .selected-flag:focus {
+  background-color: transparent !important;
+}
+
+/* Add a line separator after the flag */
+.react-tel-input .selected-flag::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 50%;
+  width: 1px;
+  background-color: #27272a;
+  /* zinc-800 */
+}
+
+/* Adjust dropdown list styles */
+.react-tel-input .country-list {
+  background-color: #111 !important;
+  border: 1px solid #27272a !important;
+  border-radius: 0.75rem !important;
+  color: white !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  margin-top: 8px !important;
+  scrollbar-width: thin;
+  scrollbar-color: #3f3f46 transparent;
+}
+
+.react-tel-input .country-list .country {
+  background-color: transparent !important;
+  color: #fff !important;
+}
+
+.react-tel-input .country-list .country .dial-code {
+  color: #9ca3af !important;
+}
+
+.react-tel-input .country-list .country:hover {
+  background-color: #27272a !important;
+}
+
+.react-tel-input .country-list .country.highlight {
+  background-color: #27272a !important;
+}
+
+.react-tel-input .country-list .divider {
+  border-bottom: 1px solid #27272a !important;
+}
+
+.react-tel-input .selected-flag .arrow {
+  border-top-color: #9ca3af !important;
+}
+
+.react-tel-input .selected-flag .arrow.up {
+  border-top-color: transparent !important;
+  border-bottom-color: #9ca3af !important;
+}
+
+.react-tel-input .search-box {
+  background-color: #111 !important;
+  border: 1px solid #27272a !important;
+  color: white !important;
+  border-radius: 0.5rem !important;
+}
+
+.react-tel-input .search {
+  background-color: #111 !important;
+}

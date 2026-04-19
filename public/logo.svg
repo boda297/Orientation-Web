@@ -1,0 +1,12 @@
+<svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Red circle background -->
+  <circle cx="25" cy="25" r="25" fill="#DC2626"/>
+  
+  <!-- Black play triangle with shadow effect -->
+  <g>
+    <!-- Shadow on bottom-right -->
+    <path d="M18 15L18 35L32 25L18 15Z" fill="#991B1B" opacity="0.6" transform="translate(1.5, 1.5)"/>
+    <!-- Main black triangle -->
+    <path d="M18 15L18 35L32 25L18 15Z" fill="#000000"/>
+  </g>
+</svg>
