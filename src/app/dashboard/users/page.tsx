@@ -3,62 +3,27 @@
 import { useState, useEffect } from 'react';
 import { Users, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { getApiUrl } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { usersApi, type User } from '@/lib/dashboardApi';
 
 export default function UsersList() {
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState('');
 
     useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const token = getAccessToken();
-                // Replace '/users' with your actual endpoint path if different
-                const res = await fetch(getApiUrl('/users'), {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    // Assumes the API returns an array, or adjust to e.g., data.users
-                    setUsers(Array.isArray(data) ? data : (data.users || data.data || []));
-                } else {
-                    console.error('Failed to fetch users');
-                }
-            } catch (error) {
-                console.error('Error fetching users:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchUsers();
+        usersApi.list()
+            .then(setUsers)
+            .catch((err) => setError(err.message || 'Failed to load users'))
+            .finally(() => setIsLoading(false));
     }, []);
 
     const handleDelete = async (id: string) => {
-        if (window.confirm("Are you sure you want to delete this user?")) {
-            try {
-                const token = getAccessToken();
-                // Replace '/users/${id}' with your actual endpoint
-                const res = await fetch(getApiUrl(`/users/${id}`), {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (res.ok) {
-                    setUsers(users.filter(u => u._id !== id && u.id !== id));
-                } else {
-                    alert('Failed to delete user');
-                }
-            } catch (error) {
-                console.error('Error deleting user:', error);
-                alert('Error deleting user');
-            }
+        if (!window.confirm('Are you sure you want to delete this user?')) return;
+        try {
+            await usersApi.delete(id);
+            setUsers((prev) => prev.filter((u) => u._id !== id));
+        } catch (err: any) {
+            alert(err.message || 'Failed to delete user');
         }
     };
 
@@ -69,11 +34,20 @@ export default function UsersList() {
                     <Users className="w-8 h-8 text-red-500" />
                     Registered Users
                 </h1>
-                <Link href="/dashboard/users/create" className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-red-600/20">
+                <Link
+                    href="/dashboard/users/create"
+                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-red-600/20"
+                >
                     <Plus className="w-5 h-5" />
                     Create User
                 </Link>
             </div>
+
+            {error && (
+                <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-xl text-sm">
+                    {error}
+                </div>
+            )}
 
             <div className="bg-[#111] border border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
                 <div className="overflow-x-auto min-h-[200px]">
@@ -103,26 +77,36 @@ export default function UsersList() {
                                     </td>
                                 </tr>
                             ) : (
-                                users.map((u: any, idx) => (
-                                    <tr key={u._id || u.id || idx} className="hover:bg-zinc-800/50 transition-colors">
+                                users.map((u, idx) => (
+                                    <tr key={u._id || idx} className="hover:bg-zinc-800/50 transition-colors">
                                         <td className="px-6 py-4 font-medium">{u.name || u.username}</td>
                                         <td className="px-6 py-4 text-gray-400">{u.email}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${u.role === 'superadmin' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                                u.role === 'admin' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
-                                                    'bg-zinc-500/10 text-zinc-300 border-zinc-500/20'
-                                                }`}>
+                                            <span
+                                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                                    u.role === 'superadmin'
+                                                        ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                                        : u.role === 'admin'
+                                                        ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                                        : 'bg-zinc-500/10 text-zinc-300 border-zinc-500/20'
+                                                }`}
+                                            >
                                                 {(u.role || 'user').toUpperCase()}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-3">
-                                                <button className="p-2 bg-zinc-800 hover:bg-yellow-500/20 hover:text-yellow-500 text-gray-400 rounded-lg transition-colors" title="Edit">
+                                                <button
+                                                    className="p-2 bg-zinc-800 hover:bg-yellow-500/20 hover:text-yellow-500 text-gray-400 rounded-lg transition-colors"
+                                                    title="Edit"
+                                                >
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(u._id || u.id)}
-                                                    className="p-2 bg-zinc-800 hover:bg-red-500/20 hover:text-red-500 text-gray-400 rounded-lg transition-colors" title="Delete">
+                                                    onClick={() => handleDelete(u._id)}
+                                                    className="p-2 bg-zinc-800 hover:bg-red-500/20 hover:text-red-500 text-gray-400 rounded-lg transition-colors"
+                                                    title="Delete"
+                                                >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>

@@ -3,8 +3,7 @@
 import { useState, useRef } from 'react';
 import { UploadCloud, CheckCircle2, Loader2, Building2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
-import { getApiUrl } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { developersApi } from '@/lib/dashboardApi';
 
 export default function CreateDeveloperPage() {
     const [name, setName] = useState('');
@@ -14,82 +13,37 @@ export default function CreateDeveloperPage() {
     const [preview, setPreview] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [error, setError] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-    };
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            handleFileSelected(e.dataTransfer.files[0]);
-        }
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            handleFileSelected(e.target.files[0]);
-        }
-    };
 
     const handleFileSelected = (selectedFile: File) => {
         if (!selectedFile.type.startsWith('image/')) {
-            alert('Please upload an image file.');
+            setError('Please upload an image file.');
             return;
         }
         setFile(selectedFile);
-        const objectUrl = URL.createObjectURL(selectedFile);
-        setPreview(objectUrl);
+        setPreview(URL.createObjectURL(selectedFile));
+        setError('');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name || !file) {
-            alert('Please provide a name and a logo.');
-            return;
-        }
+        if (!file) { setError('Please provide a logo image.'); return; }
 
         setLoading(true);
         setSuccess(false);
+        setError('');
 
         try {
-            const formData = new FormData();
-            formData.append('name', name);
-            if (tagline) formData.append('tagline', tagline);
-            formData.append('logo', file); // Double check if API expects 'logo', 'image' or 'thumbnail'
-
-            const token = getAccessToken();
-            // Replace /developers with your API endpoint
-            const res = await fetch(getApiUrl('/developers'), {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => null);
-                throw new Error(errorData?.message || 'Failed to create developer');
-            }
-
+            await developersApi.create({ name, tagline: tagline || undefined, logo: file });
             setSuccess(true);
             setName('');
             setTagline('');
             setFile(null);
             setPreview(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
-        } catch (error: any) {
-            console.error(error);
-            alert(error.message || 'Failed to create developer.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to create developer.');
         } finally {
             setLoading(false);
         }
@@ -97,7 +51,10 @@ export default function CreateDeveloperPage() {
 
     return (
         <div className="animate-in fade-in duration-500 max-w-4xl mx-auto space-y-6">
-            <Link href="/dashboard/developer" className="flex items-center text-gray-400 hover:text-white mb-4 transition-colors w-max">
+            <Link
+                href="/dashboard/developer"
+                className="flex items-center text-gray-400 hover:text-white mb-4 transition-colors w-max"
+            >
                 <ChevronLeft className="w-5 h-5 mr-1" />
                 Back to Developers
             </Link>
@@ -115,11 +72,20 @@ export default function CreateDeveloperPage() {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="bg-[#111] border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-xl flex flex-col gap-6">
+                {error && (
+                    <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-xl mb-6 text-sm">
+                        {error}
+                    </div>
+                )}
 
-                    {/* Name Input */}
+                <form
+                    onSubmit={handleSubmit}
+                    className="bg-[#111] border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-xl flex flex-col gap-6"
+                >
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-semibold text-gray-300">Developer Name <span className="text-red-500">*</span></label>
+                        <label className="text-sm font-semibold text-gray-300">
+                            Developer Name <span className="text-red-500">*</span>
+                        </label>
                         <input
                             type="text"
                             value={name}
@@ -130,9 +96,10 @@ export default function CreateDeveloperPage() {
                         />
                     </div>
 
-                    {/* Tagline Input Optional */}
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-semibold text-gray-300">Tagline / Slogan (Optional)</label>
+                        <label className="text-sm font-semibold text-gray-300">
+                            Tagline / Slogan (Optional)
+                        </label>
                         <input
                             type="text"
                             value={tagline}
@@ -142,29 +109,39 @@ export default function CreateDeveloperPage() {
                         />
                     </div>
 
-                    {/* Logo Upload Drag & Drop */}
                     <div className="flex flex-col gap-2">
-                        <label className="text-sm font-semibold text-gray-300">Developer Logo <span className="text-red-500">*</span></label>
+                        <label className="text-sm font-semibold text-gray-300">
+                            Developer Logo <span className="text-red-500">*</span>
+                        </label>
                         <div
-                            className={`relative border-2 border-dashed rounded-xl h-48 flex flex-col items-center justify-center cursor-pointer transition-colors ${isDragging ? 'border-red-500 bg-red-500/10' : 'border-zinc-700 bg-black hover:border-zinc-500 hover:bg-zinc-900/50'
-                                }`}
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            onDrop={handleDrop}
+                            className={`relative border-2 border-dashed rounded-xl h-48 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                                isDragging
+                                    ? 'border-red-500 bg-red-500/10'
+                                    : 'border-zinc-700 bg-black hover:border-zinc-500 hover:bg-zinc-900/50'
+                            }`}
+                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                            onDragLeave={() => setIsDragging(false)}
+                            onDrop={(e) => {
+                                e.preventDefault();
+                                setIsDragging(false);
+                                if (e.dataTransfer.files[0]) handleFileSelected(e.dataTransfer.files[0]);
+                            }}
                             onClick={() => fileInputRef.current?.click()}
                         >
                             <input
                                 type="file"
                                 ref={fileInputRef}
-                                onChange={handleFileChange}
+                                onChange={(e) => e.target.files?.[0] && handleFileSelected(e.target.files[0])}
                                 accept="image/*"
                                 className="hidden"
                             />
                             {preview ? (
-                                <div className="relative w-full h-full p-2">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={preview} alt="Preview" className="w-full h-full object-contain rounded-lg" />
-                                </div>
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={preview}
+                                    alt="Preview"
+                                    className="w-full h-full object-contain rounded-lg p-2"
+                                />
                             ) : (
                                 <>
                                     <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-3">
@@ -177,7 +154,6 @@ export default function CreateDeveloperPage() {
                         </div>
                     </div>
 
-                    {/* Submit Button */}
                     <button
                         type="submit"
                         disabled={loading}
@@ -185,7 +161,6 @@ export default function CreateDeveloperPage() {
                     >
                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Developer'}
                     </button>
-
                 </form>
             </div>
         </div>

@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { Loader2, CheckCircle2, UserPlus, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
-import { getApiUrl } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { usersApi } from '@/lib/dashboardApi';
 
 export default function CreateUserPage() {
     const [name, setName] = useState('');
@@ -13,42 +12,23 @@ export default function CreateUserPage() {
     const [role, setRole] = useState('user');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name || !email || !password || !role) {
-            alert('Please fill all fields.');
-            return;
-        }
-
         setLoading(true);
         setSuccess(false);
+        setError('');
 
         try {
-            const token = getAccessToken();
-            // Replace /users with your actual POST endpoint
-            const res = await fetch(getApiUrl('/users'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ name, email, password, role })
-            });
-
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => null);
-                throw new Error(errorData?.message || 'Failed to create user');
-            }
-
+            await usersApi.create({ name, email, password, role });
             setSuccess(true);
             setName('');
             setEmail('');
             setPassword('');
             setRole('user');
-        } catch (error: any) {
-            console.error(error);
-            alert(error.message || 'Failed to create user.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to create user.');
         } finally {
             setLoading(false);
         }
@@ -56,7 +36,10 @@ export default function CreateUserPage() {
 
     return (
         <div className="animate-in fade-in duration-500 max-w-4xl mx-auto space-y-6">
-            <Link href="/dashboard/users" className="flex items-center text-gray-400 hover:text-white mb-4 transition-colors w-max">
+            <Link
+                href="/dashboard/users"
+                className="flex items-center text-gray-400 hover:text-white mb-4 transition-colors w-max"
+            >
                 <ChevronLeft className="w-5 h-5 mr-1" />
                 Back to Users
             </Link>
@@ -74,11 +57,21 @@ export default function CreateUserPage() {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="bg-[#111] border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-xl flex flex-col gap-6">
+                {error && (
+                    <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-xl mb-6 text-sm">
+                        {error}
+                    </div>
+                )}
+
+                <form
+                    onSubmit={handleSubmit}
+                    className="bg-[#111] border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-xl flex flex-col gap-6"
+                >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Name Input */}
                         <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-300">Name <span className="text-red-500">*</span></label>
+                            <label className="text-sm font-semibold text-gray-300">
+                                Name <span className="text-red-500">*</span>
+                            </label>
                             <input
                                 type="text"
                                 value={name}
@@ -89,9 +82,10 @@ export default function CreateUserPage() {
                             />
                         </div>
 
-                        {/* Email Input */}
                         <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-300">Email <span className="text-red-500">*</span></label>
+                            <label className="text-sm font-semibold text-gray-300">
+                                Email <span className="text-red-500">*</span>
+                            </label>
                             <input
                                 type="email"
                                 value={email}
@@ -102,9 +96,10 @@ export default function CreateUserPage() {
                             />
                         </div>
 
-                        {/* Password Input */}
                         <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-300">Password <span className="text-red-500">*</span></label>
+                            <label className="text-sm font-semibold text-gray-300">
+                                Password <span className="text-red-500">*</span>
+                            </label>
                             <input
                                 type="password"
                                 value={password}
@@ -115,9 +110,10 @@ export default function CreateUserPage() {
                             />
                         </div>
 
-                        {/* Role Select */}
                         <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-300">Role <span className="text-red-500">*</span></label>
+                            <label className="text-sm font-semibold text-gray-300">
+                                Role <span className="text-red-500">*</span>
+                            </label>
                             <select
                                 value={role}
                                 onChange={(e) => setRole(e.target.value)}
@@ -131,7 +127,6 @@ export default function CreateUserPage() {
                         </div>
                     </div>
 
-                    {/* Submit Button */}
                     <button
                         type="submit"
                         disabled={loading}
