@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { usersApi } from '@/lib/dashboardApi';
 
 export default function CreateUserPage() {
-    const [name, setName] = useState('');
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState('user');
+    const [phoneNumber, setPhoneNumber] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
@@ -21,12 +21,12 @@ export default function CreateUserPage() {
         setError('');
 
         try {
-            await usersApi.create({ name, email, password, role });
+            await usersApi.create({ username, email, password, phoneNumber });
             setSuccess(true);
-            setName('');
+            setUsername('');
             setEmail('');
             setPassword('');
-            setRole('user');
+            setPhoneNumber('');
         } catch (err: any) {
             setError(err.message || 'Failed to create user.');
         } finally {
@@ -70,15 +70,15 @@ export default function CreateUserPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold text-gray-300">
-                                Name <span className="text-red-500">*</span>
+                                Username <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
                                 required
                                 className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
-                                placeholder="e.g. John Doe"
+                                placeholder="e.g. john_doe"
                             />
                         </div>
 
@@ -98,6 +98,20 @@ export default function CreateUserPage() {
 
                         <div className="flex flex-col gap-2">
                             <label className="text-sm font-semibold text-gray-300">
+                                Phone Number <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="tel"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                required
+                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
+                                placeholder="e.g. +201000000000"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">
                                 Password <span className="text-red-500">*</span>
                             </label>
                             <input
@@ -106,26 +120,14 @@ export default function CreateUserPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
-                                placeholder="••••••••"
+                                placeholder="Min 8 chars, upper, lower, number & special"
                             />
                         </div>
-
-                        <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-300">
-                                Role <span className="text-red-500">*</span>
-                            </label>
-                            <select
-                                value={role}
-                                onChange={(e) => setRole(e.target.value)}
-                                required
-                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors cursor-pointer appearance-none"
-                            >
-                                <option value="user">User (Normal)</option>
-                                <option value="admin">Admin</option>
-                                <option value="superadmin">Super Admin</option>
-                            </select>
-                        </div>
                     </div>
+
+                    <p className="text-xs text-gray-500">
+                        Password must be at least 8 characters and contain an uppercase letter, lowercase letter, number, and special character.
+                    </p>
 
                     <button
                         type="submit"
