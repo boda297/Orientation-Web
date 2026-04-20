@@ -56,7 +56,7 @@ export default function DevelopersList() {
                             <tr>
                                 <th className="px-6 py-4">Logo</th>
                                 <th className="px-6 py-4">Name</th>
-                                <th className="px-6 py-4">Tagline</th>
+                                <th className="px-6 py-4">Location</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -78,7 +78,7 @@ export default function DevelopersList() {
                                 </tr>
                             ) : (
                                 developers.map((d, idx) => {
-                                    const logoSrc = d.logo || d.thumbnail || d.imageUrl;
+                                    const logoSrc = d.logo;
                                     return (
                                         <tr key={d._id || idx} className="hover:bg-zinc-800/50 transition-colors">
                                             <td className="px-6 py-4">
@@ -97,7 +97,7 @@ export default function DevelopersList() {
                                             </td>
                                             <td className="px-6 py-4 font-medium">{d.name}</td>
                                             <td className="px-6 py-4 text-gray-400">
-                                                {d.tagline || d.description || '-'}
+                                                {d.location || '-'}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-3">

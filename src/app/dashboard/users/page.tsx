@@ -79,7 +79,7 @@ export default function UsersList() {
                             ) : (
                                 users.map((u, idx) => (
                                     <tr key={u._id || idx} className="hover:bg-zinc-800/50 transition-colors">
-                                        <td className="px-6 py-4 font-medium">{u.name || u.username}</td>
+                                        <td className="px-6 py-4 font-medium">{u.username}</td>
                                         <td className="px-6 py-4 text-gray-400">{u.email}</td>
                                         <td className="px-6 py-4">
                                             <span
