@@ -1,44 +1,44 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { UploadCloud, CheckCircle2, Loader2, Building2, ChevronLeft } from 'lucide-react';
+import { CheckCircle2, Loader2, Building2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { developersApi } from '@/lib/dashboardApi';
 
 export default function CreateDeveloperPage() {
     const [name, setName] = useState('');
-    const [tagline, setTagline] = useState('');
+    const [location, setLocation] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [socialMediaLink, setSocialMediaLink] = useState('');
     const [file, setFile] = useState<File | null>(null);
-    const [isDragging, setIsDragging] = useState(false);
     const [preview, setPreview] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileSelected = (selectedFile: File) => {
-        if (!selectedFile.type.startsWith('image/')) {
-            setError('Please upload an image file.');
-            return;
-        }
-        setFile(selectedFile);
-        setPreview(URL.createObjectURL(selectedFile));
-        setError('');
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!file) { setError('Please provide a logo image.'); return; }
 
         setLoading(true);
         setSuccess(false);
         setError('');
 
         try {
-            await developersApi.create({ name, tagline: tagline || undefined, logo: file });
+            await developersApi.create({
+                name,
+                location,
+                email: email || undefined,
+                phone: phone || undefined,
+                socialMediaLink: socialMediaLink || undefined,
+            });
             setSuccess(true);
             setName('');
-            setTagline('');
+            setLocation('');
+            setEmail('');
+            setPhone('');
+            setSocialMediaLink('');
             setFile(null);
             setPreview(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -82,75 +82,72 @@ export default function CreateDeveloperPage() {
                     onSubmit={handleSubmit}
                     className="bg-[#111] border border-zinc-800 p-6 md:p-8 rounded-2xl shadow-xl flex flex-col gap-6"
                 >
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-semibold text-gray-300">
-                            Developer Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
-                            placeholder="e.g. Margins Developments"
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-semibold text-gray-300">
-                            Tagline / Slogan (Optional)
-                        </label>
-                        <input
-                            type="text"
-                            value={tagline}
-                            onChange={(e) => setTagline(e.target.value)}
-                            className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
-                            placeholder="e.g. Paving a new way"
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-sm font-semibold text-gray-300">
-                            Developer Logo <span className="text-red-500">*</span>
-                        </label>
-                        <div
-                            className={`relative border-2 border-dashed rounded-xl h-48 flex flex-col items-center justify-center cursor-pointer transition-colors ${
-                                isDragging
-                                    ? 'border-red-500 bg-red-500/10'
-                                    : 'border-zinc-700 bg-black hover:border-zinc-500 hover:bg-zinc-900/50'
-                            }`}
-                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                            onDragLeave={() => setIsDragging(false)}
-                            onDrop={(e) => {
-                                e.preventDefault();
-                                setIsDragging(false);
-                                if (e.dataTransfer.files[0]) handleFileSelected(e.dataTransfer.files[0]);
-                            }}
-                            onClick={() => fileInputRef.current?.click()}
-                        >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">
+                                Developer Name <span className="text-red-500">*</span>
+                            </label>
                             <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={(e) => e.target.files?.[0] && handleFileSelected(e.target.files[0])}
-                                accept="image/*"
-                                className="hidden"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
+                                placeholder="e.g. Margins Developments"
                             />
-                            {preview ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={preview}
-                                    alt="Preview"
-                                    className="w-full h-full object-contain rounded-lg p-2"
-                                />
-                            ) : (
-                                <>
-                                    <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-3">
-                                        <UploadCloud className="w-6 h-6 text-gray-400" />
-                                    </div>
-                                    <p className="text-gray-300 font-medium">Click or drag image here</p>
-                                    <p className="text-gray-500 text-xs mt-1">SVG, PNG, JPG or WEBP (max. 5MB)</p>
-                                </>
-                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">
+                                Location <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={location}
+                                onChange={(e) => setLocation(e.target.value)}
+                                required
+                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
+                                placeholder="e.g. New Cairo"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">
+                                Email (Optional)
+                            </label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
+                                placeholder="e.g. contact@developer.com"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">
+                                Phone (Optional)
+                            </label>
+                            <input
+                                type="tel"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
+                                placeholder="e.g. +201000000000"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2 md:col-span-2">
+                            <label className="text-sm font-semibold text-gray-300">
+                                Social Media Link (Optional)
+                            </label>
+                            <input
+                                type="url"
+                                value={socialMediaLink}
+                                onChange={(e) => setSocialMediaLink(e.target.value)}
+                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
+                                placeholder="e.g. https://instagram.com/developer"
+                            />
                         </div>
                     </div>
 

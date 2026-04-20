@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'https://api.orientationapps.com';
 
 // Helper function to build full URL
 export const getApiUrl = (endpoint: string) => {

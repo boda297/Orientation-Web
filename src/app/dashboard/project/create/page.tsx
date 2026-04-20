@@ -2,23 +2,23 @@
 
 import { useState, useRef, useEffect } from 'react';
 import {
-    UploadCloud, CheckCircle2, Loader2, Image as ImageIcon,
-    Video, File, FileText, PlusSquare, ChevronLeft,
+    CheckCircle2, Loader2, Image as ImageIcon,
+    Video, PlusSquare, ChevronLeft,
 } from 'lucide-react';
 import Link from 'next/link';
 import { projectsApi, developersApi, type Developer } from '@/lib/dashboardApi';
 
-function FileZone({
-    label, icon: Icon, accept, file, onChange, required,
+/** Square image upload with live preview */
+function ImageZone({
+    label, file, onChange, required,
 }: {
     label: string;
-    icon: React.ElementType;
-    accept: string;
     file: File | null;
     onChange: (f: File | null) => void;
     required?: boolean;
 }) {
     const ref = useRef<HTMLInputElement>(null);
+    const previewUrl = file ? URL.createObjectURL(file) : null;
     return (
         <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-gray-300">
@@ -26,19 +26,85 @@ function FileZone({
             </label>
             <div
                 onClick={() => ref.current?.click()}
-                className="relative border-2 border-dashed border-zinc-700 hover:border-red-500 bg-black hover:bg-zinc-900/50 rounded-xl h-32 flex flex-col items-center justify-center cursor-pointer transition-colors"
+                className="relative border-2 border-dashed border-zinc-700 hover:border-red-500 bg-black rounded-xl cursor-pointer transition-colors overflow-hidden"
+                style={{ aspectRatio: '1 / 1' }}
             >
                 <input
                     ref={ref}
                     type="file"
-                    accept={accept}
+                    accept="image/*"
                     className="hidden"
                     onChange={(e) => onChange(e.target.files?.[0] ?? null)}
                 />
-                <Icon className={`w-6 h-6 mb-2 ${file ? 'text-red-500' : 'text-gray-400'}`} />
-                <p className="text-gray-300 text-sm text-center px-2 truncate max-w-full">
-                    {file ? file.name : `Upload ${label}`}
-                </p>
+                {previewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={previewUrl} alt={label} className="w-full h-full object-cover" />
+                ) : (
+                    <div className="flex flex-col items-center justify-center w-full h-full gap-2 p-4">
+                        <ImageIcon className="w-8 h-8 text-gray-500" />
+                        <p className="text-gray-400 text-xs text-center">Click to upload {label}</p>
+                    </div>
+                )}
+                {previewUrl && (
+                    <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <p className="text-white text-xs font-medium px-2 text-center truncate">{file?.name}</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/** 16:9 video upload with native video player preview */
+function VideoZone({
+    label, file, onChange, required,
+}: {
+    label: string;
+    file: File | null;
+    onChange: (f: File | null) => void;
+    required?: boolean;
+}) {
+    const ref = useRef<HTMLInputElement>(null);
+    const previewUrl = file ? URL.createObjectURL(file) : null;
+    return (
+        <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-300">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <div
+                className="relative border-2 border-dashed border-zinc-700 hover:border-red-500 bg-black rounded-xl cursor-pointer transition-colors overflow-hidden"
+                style={{ aspectRatio: '16 / 9' }}
+                onClick={() => !previewUrl && ref.current?.click()}
+            >
+                <input
+                    ref={ref}
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+                />
+                {previewUrl ? (
+                    <video
+                        src={previewUrl}
+                        controls
+                        className="w-full h-full object-contain bg-black"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                ) : (
+                    <div className="flex flex-col items-center justify-center w-full h-full gap-2 p-4">
+                        <Video className="w-8 h-8 text-gray-500" />
+                        <p className="text-gray-400 text-xs text-center">Click to upload {label}</p>
+                    </div>
+                )}
+                {previewUrl && (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); ref.current?.click(); }}
+                        className="absolute top-2 right-2 bg-black/70 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-lg transition-colors z-10"
+                    >
+                        Replace
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -51,12 +117,9 @@ export default function CreateProjectPage() {
     const [whatsapp, setWhatsapp] = useState('');
     const [script, setScript] = useState('');
 
-    const [thumbnail, setThumbnail] = useState<File | null>(null);
-    const [heroImage, setHeroImage] = useState<File | null>(null);
-    const [heroVideo, setHeroVideo] = useState<File | null>(null);
-    const [inventoryPdf, setInventoryPdf] = useState<File | null>(null);
-    const [episodes, setEpisodes] = useState<File[]>([]);
-    const episodesRef = useRef<HTMLInputElement>(null);
+    const [thumbnail, setThumbnail] = useState<File | null>(null);  // → projectThumbnail
+    const [logoImage, setLogoImage] = useState<File | null>(null);   // → logo
+    const [heroVideo, setHeroVideo] = useState<File | null>(null);   // → heroVideo (required)
 
     const [developers, setDevelopers] = useState<Developer[]>([]);
     const [loading, setLoading] = useState(false);
@@ -69,13 +132,12 @@ export default function CreateProjectPage() {
 
     const resetForm = () => {
         setTitle(''); setDeveloperId(''); setLocation(''); setWhatsapp(''); setScript('');
-        setThumbnail(null); setHeroImage(null); setHeroVideo(null); setInventoryPdf(null); setEpisodes([]);
-        if (episodesRef.current) episodesRef.current.value = '';
+        setThumbnail(null); setLogoImage(null); setHeroVideo(null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!thumbnail) { setError('Please upload a project thumbnail.'); return; }
+        if (!heroVideo) { setError('Please upload a hero background video.'); return; }
         if (!developerId) { setError('Please select a developer.'); return; }
 
         setLoading(true);
@@ -86,14 +148,12 @@ export default function CreateProjectPage() {
             await projectsApi.create({
                 title,
                 developer: developerId,
-                location: location || undefined,
+                location,
+                script,
                 whatsappNumber: whatsapp || undefined,
-                script: script || undefined,
-                projectThumbnailUrl: thumbnail ?? undefined,
-                heroImageUrl: heroImage ?? undefined,
-                videoUrl: heroVideo ?? undefined,
-                inventoryPdf: inventoryPdf ?? undefined,
-                episodes: episodes.length ? episodes : undefined,
+                projectThumbnail: thumbnail ?? undefined,
+                heroVideo,
+                logo: logoImage ?? undefined,
             });
             setSuccess(true);
             resetForm();
@@ -170,11 +230,14 @@ export default function CreateProjectPage() {
                             </select>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <label className="text-sm font-semibold text-gray-300">Location</label>
+                            <label className="text-sm font-semibold text-gray-300">
+                                Location <span className="text-red-500">*</span>
+                            </label>
                             <input
                                 type="text"
                                 value={location}
                                 onChange={(e) => setLocation(e.target.value)}
+                                required
                                 className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
                                 placeholder="e.g. New Cairo"
                             />
@@ -195,39 +258,22 @@ export default function CreateProjectPage() {
                 {/* Media & Files */}
                 <div className="space-y-4">
                     <h2 className="text-xl font-bold text-white border-b border-zinc-800 pb-2">Media & Files</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FileZone label="Card Thumbnail" icon={ImageIcon} accept="image/*" file={thumbnail} onChange={setThumbnail} required />
-                        <FileZone label="Hero Background Image" icon={ImageIcon} accept="image/*" file={heroImage} onChange={setHeroImage} />
-                        <FileZone label="Hero Background Video" icon={Video} accept="video/*" file={heroVideo} onChange={setHeroVideo} />
-                        <FileZone label="Inventory PDF" icon={FileText} accept="application/pdf" file={inventoryPdf} onChange={setInventoryPdf} />
-                        <div className="flex flex-col gap-2 md:col-span-2">
-                            <label className="text-sm font-semibold text-gray-300">Episodes (Videos / PDFs)</label>
-                            <div
-                                onClick={() => episodesRef.current?.click()}
-                                className="relative border-2 border-dashed border-zinc-700 hover:border-red-500 bg-black hover:bg-zinc-900/50 rounded-xl h-32 flex flex-col items-center justify-center cursor-pointer transition-colors"
-                            >
-                                <input
-                                    ref={episodesRef}
-                                    type="file"
-                                    multiple
-                                    className="hidden"
-                                    onChange={(e) => setEpisodes(e.target.files ? Array.from(e.target.files) : [])}
-                                />
-                                <File className={`w-6 h-6 mb-2 ${episodes.length ? 'text-red-500' : 'text-gray-400'}`} />
-                                <p className="text-gray-300 text-sm">
-                                    {episodes.length ? `${episodes.length} file(s) selected` : 'Select Multiple Episodes'}
-                                </p>
-                            </div>
-                        </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <ImageZone label="Card Thumbnail" file={thumbnail} onChange={setThumbnail} />
+                        <ImageZone label="Developer Logo" file={logoImage} onChange={setLogoImage} />
                     </div>
+                    <VideoZone label="Hero Background Video" file={heroVideo} onChange={setHeroVideo} required />
                 </div>
 
                 {/* Script */}
                 <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-white border-b border-zinc-800 pb-2">Project Script</h2>
+                    <h2 className="text-xl font-bold text-white border-b border-zinc-800 pb-2">
+                        Project Script <span className="text-red-500">*</span>
+                    </h2>
                     <textarea
                         value={script}
                         onChange={(e) => setScript(e.target.value)}
+                        required
                         className="w-full h-40 bg-black border border-zinc-700 rounded-xl p-4 text-white focus:border-red-500 focus:outline-none transition-colors resize-none"
                         placeholder="Write the project script or detailed description here..."
                     />

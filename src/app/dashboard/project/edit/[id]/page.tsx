@@ -70,6 +70,46 @@ function FileZone({
     const previewUrl = hasNew ? newPreviewUrl : hasExisting ? getFileUrl(existingUrl as string) : null;
     const showPreview = !!previewUrl;
 
+    // Video zones get a 16:9 playable player
+    if (isVideo) {
+        return (
+            <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-300">
+                    {label}{required && <span className="text-red-500 ml-1">*</span>}
+                    {hasExisting && <span className="ml-2 text-xs text-yellow-400 font-normal">Current &mdash; replace below</span>}
+                </label>
+                <div
+                    className={`relative border-2 border-dashed rounded-xl overflow-hidden w-full ${
+                        hasNew ? 'border-red-500' : hasExisting ? 'border-yellow-500/60' : 'border-zinc-700 bg-black hover:border-red-500'
+                    }`}
+                    style={{ aspectRatio: '16 / 9' }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={handleDrop}
+                    onClick={() => !previewUrl && ref.current?.click()}
+                >
+                    <input ref={ref} type="file" accept={accept} className="hidden"
+                        onChange={e => onChange(e.target.files?.[0] ?? null)} />
+                    {previewUrl ? (
+                        <video src={previewUrl} controls className="w-full h-full object-contain bg-black"
+                            onClick={e => e.stopPropagation()} />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center w-full h-full gap-2">
+                            <Icon className="w-8 h-8 text-gray-500" />
+                            <p className="text-gray-400 text-xs">Click to upload {label}</p>
+                        </div>
+                    )}
+                    {previewUrl && (
+                        <button type="button"
+                            onClick={e => { e.stopPropagation(); ref.current?.click(); }}
+                            className="absolute top-2 right-2 bg-black/70 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-lg transition-colors z-10">
+                            {hasNew ? 'Replace ✓' : 'Replace'}
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col gap-2">
             <label className="text-sm font-semibold text-gray-300">
@@ -92,10 +132,7 @@ function FileZone({
                 {showPreview && isImage && (
                     <img src={previewUrl!} alt="preview" className="absolute inset-0 w-full h-full object-cover" />
                 )}
-                {showPreview && isVideo && (
-                    <video src={previewUrl!} className="absolute inset-0 w-full h-full object-cover" muted playsInline preload="metadata" />
-                )}
-                {showPreview && !isImage && !isVideo && (
+                {showPreview && !isImage && (
                     <div className="absolute inset-0 bg-zinc-800 flex items-center justify-center">
                         <Icon className="w-10 h-10 text-zinc-400" />
                     </div>
@@ -111,14 +148,10 @@ function FileZone({
                 )}
 
                 {hasExisting && (
-                    <span className="absolute top-2 right-2 text-xs bg-yellow-500 text-black font-bold px-2 py-0.5 rounded-full z-10">
-                        Replace
-                    </span>
+                    <span className="absolute top-2 right-2 text-xs bg-yellow-500 text-black font-bold px-2 py-0.5 rounded-full z-10">Replace</span>
                 )}
                 {hasNew && (
-                    <span className="absolute top-2 right-2 text-xs bg-red-500 text-white font-bold px-2 py-0.5 rounded-full z-10">
-                        New
-                    </span>
+                    <span className="absolute top-2 right-2 text-xs bg-red-500 text-white font-bold px-2 py-0.5 rounded-full z-10">New</span>
                 )}
 
                 {!showPreview && (
@@ -178,9 +211,11 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     useEffect(() => {
         const load = async () => {
             try {
+                const token = getAccessToken();
+                const authHeader = { Authorization: `Bearer ${token}` };
                 const [projRes, devRes] = await Promise.all([
                     fetch(getApiUrl(`/projects/${id}`)),
-                    fetch(getApiUrl('/developers'))
+                    fetch(getApiUrl('/developer'), { headers: authHeader })
                 ]);
                 if (projRes.ok) { const data = await projRes.json(); setProject(data); }
                 if (devRes.ok) {
@@ -271,9 +306,9 @@ function ProjectDetailsTab({ project, developers, id, onUpdate }: {
             if (script) fd.append('script', script);
             fd.append('featured', String(featured));
             fd.append('published', String(published));
-            if (logo) fd.append('logoUrl', logo);
-            if (heroVideo) fd.append('videoUrl', heroVideo);
-            if (thumbnail) fd.append('projectThumbnailUrl', thumbnail);
+            if (logo) fd.append('logo', logo);
+            if (heroVideo) fd.append('heroVideo', heroVideo);
+            if (thumbnail) fd.append('projectThumbnail', thumbnail);
             const token = getAccessToken();
             const res = await fetch(getApiUrl(`/projects/${id}`), {
                 method: 'PATCH', headers: { Authorization: `Bearer ${token}` }, body: fd,
@@ -374,12 +409,14 @@ function EpisodesTab({ project, id, onUpdate }: { project: Project; id: string; 
             if (epDuration) fd.append('duration', epDuration);
             if (!editingEp) fd.append('projectId', id);
             if (epThumb) fd.append('thumbnail', epThumb);
-            if (epVideo) fd.append('episodeUrl', epVideo);
+            if (epVideo) fd.append('episodeFile', epVideo);
             const token = getAccessToken();
             const url = editingEp ? getApiUrl(`/episode/${editingEp._id}`) : getApiUrl('/episode');
             const res = await fetch(url, { method: editingEp ? 'PATCH' : 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
             if (!res.ok) { const err = await res.json().catch(()=>null); throw new Error(err?.message||'Failed to save episode'); }
-            const saved: Episode = await res.json();
+            const body = await res.json();
+            // Backend wraps POST response: { message, episode } — PATCH returns the episode directly
+            const saved: Episode = body?.episode ?? body;
             if (editingEp) { setEpisodes(prev => prev.map(ep => ep._id === saved._id ? saved : ep)); setBanner({type:'success',msg:'Episode updated!'}); }
             else { setEpisodes(prev=>[...prev,saved]); setBanner({type:'success',msg:'Episode added!'}); }
             cancelForm();
@@ -475,13 +512,15 @@ function ReelsTab({ project, id, onUpdate }: { project: Project; id: string; onU
             const fd = new FormData();
             fd.append('title', reelTitle);
             if (!editingReel) fd.append('projectId', id);
-            if (reelVideo) fd.append('fileUrl', reelVideo);
+            if (reelVideo) fd.append('file', reelVideo);
             if (reelThumb) fd.append('thumbnail', reelThumb);
             const token = getAccessToken();
             const url = editingReel ? getApiUrl(`/reels/${editingReel._id}`) : getApiUrl('/reels');
             const res = await fetch(url, { method: editingReel ? 'PATCH' : 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
             if (!res.ok) { const err = await res.json().catch(()=>null); throw new Error(err?.message||'Failed to save reel'); }
-            const saved: Reel = await res.json();
+            const body = await res.json();
+            // Backend wraps POST response: { message, reel } — PATCH returns the reel directly
+            const saved: Reel = body?.reel ?? body;
             if (editingReel) { setReels(prev=>prev.map(r=>r._id===saved._id?saved:r)); setBanner({type:'success',msg:'Reel updated!'}); }
             else { setReels(prev=>[...prev,saved]); setBanner({type:'success',msg:'Reel added!'}); }
             cancelForm();
