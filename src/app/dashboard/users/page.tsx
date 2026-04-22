@@ -96,12 +96,13 @@ export default function UsersList() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-3">
-                                                <button
+                                                <Link
+                                                    href={`/dashboard/users/edit/${u._id}`}
                                                     className="p-2 bg-zinc-800 hover:bg-yellow-500/20 hover:text-yellow-500 text-gray-400 rounded-lg transition-colors"
                                                     title="Edit"
                                                 >
                                                     <Edit className="w-4 h-4" />
-                                                </button>
+                                                </Link>
                                                 <button
                                                     onClick={() => handleDelete(u._id)}
                                                     className="p-2 bg-zinc-800 hover:bg-red-500/20 hover:text-red-500 text-gray-400 rounded-lg transition-colors"
