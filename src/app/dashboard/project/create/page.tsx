@@ -137,12 +137,13 @@ export default function CreateProjectPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!heroVideo) { setError('Please upload a hero background video.'); return; }
-        if (!developerId) { setError('Please select a developer.'); return; }
-
+        if (loading) return; // Guard: prevent double submission
         setLoading(true);
         setSuccess(false);
         setError('');
+
+        if (!heroVideo) { setError('Please upload a hero background video.'); setLoading(false); return; }
+        if (!developerId) { setError('Please select a developer.'); setLoading(false); return; }
 
         try {
             await projectsApi.create({

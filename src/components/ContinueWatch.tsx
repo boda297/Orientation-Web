@@ -176,7 +176,7 @@ export default function ContinueWatch() {
 
             return (
               <Link
-                href={`/project/${item.projectId}?tab=Episodes&episode=${item.episodeId}`}
+                href={`/project/${item.projectId}?tab=Episodes&episode=${item.episodeId}&time=${Math.floor(item.currentTime)}`}
                 key={item.episodeId}
                 className="block flex-shrink-0 w-48 sm:w-56 md:w-64 group cursor-pointer"
               >

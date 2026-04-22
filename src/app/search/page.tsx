@@ -46,7 +46,7 @@ function SearchContent() {
 
     // Discovery States
     const [latestProjects, setLatestProjects] = useState<SearchItem[]>([]);
-    const [continueWatching, setContinueWatching] = useState<WatchHistoryItem[]>([]);
+    const [continueWatching, setContinueWatching] = useState<any[]>([]);
     const [newCairoProjects, setNewCairoProjects] = useState<SearchItem[]>([]);
     const [discoveryLoading, setDiscoveryLoading] = useState(true);
 
@@ -63,12 +63,11 @@ function SearchContent() {
                 ]);
 
                 setLatestProjects(Array.isArray(latestRes.projects) ? latestRes.projects : (Array.isArray(latestRes) ? latestRes : []));
+                
                 let cwData = cwRes?.items || [];
-                if (cwData.length === 0) {
-                    cwData = [
-                        { _id: 'mock1', contentId: 'mock1', contentTitle: 'Direction White', contentThumbnail: 'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=400', currentTime: 15 * 60, duration: 120 * 60 },
-                        { _id: 'mock2', contentId: 'mock2', contentTitle: 'Oaks', contentThumbnail: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400', currentTime: 30 * 60, duration: 135 * 60 },
-                    ];
+                if (cwData.length === 0 && typeof window !== 'undefined') {
+                    const localHistory = JSON.parse(localStorage.getItem('watchHistory') || '[]');
+                    cwData = localHistory.slice(0, 4);
                 }
                 setContinueWatching(cwData);
 
@@ -220,7 +219,7 @@ function SearchContent() {
 
                 {/* Discovery Sections (Shown when search is empty) */}
                 {(searchQuery.trim() === '' && activeTab === 'All') && (
-                    <div className="space-y-12 max-w-4xl mx-auto">
+                    <div className="space-y-12 max-w-5xl mx-auto">
                         {discoveryLoading ? (
                             <div className="flex justify-center py-12">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
@@ -232,7 +231,6 @@ function SearchContent() {
                                     <section>
                                         <div className="flex justify-between items-center mb-4">
                                             <h2 className="text-xl md:text-2xl font-bold">The latest for us</h2>
-                                            <Link href="/projects" className="text-red-500 text-sm font-semibold hover:underline">View all</Link>
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {latestProjects.map(proj => (
@@ -260,11 +258,12 @@ function SearchContent() {
                                     <section>
                                         <div className="flex justify-between items-center mb-4">
                                             <h2 className="text-xl md:text-2xl font-bold">Continue watching</h2>
-                                            <Link href="/saved" className="text-red-500 text-sm font-semibold hover:underline">View all</Link>
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                            {continueWatching.map(item => {
-                                                const minutesLeft = Math.max(0, Math.ceil((item.duration - item.currentTime) / 60));
+                                            {continueWatching.map((item, idx) => {
+                                                const duration = item.duration || 1;
+                                                const currentTime = item.currentTime || 0;
+                                                const minutesLeft = Math.max(0, Math.ceil((duration - currentTime) / 60));
                                                 const hoursLeft = Math.floor(minutesLeft / 60);
                                                 const remainingMins = minutesLeft % 60;
                                                 let timeString = 'Finished';
@@ -275,15 +274,19 @@ function SearchContent() {
                                                         : `${remainingMins}m`;
                                                 }
 
-                                                const progress = item.duration > 0 ? (item.currentTime / item.duration) * 100 : 0;
-                                                const cId = typeof item.contentId === 'object' && item.contentId ? item.contentId._id || item.contentId.id : item.contentId;
+                                                const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+                                                let cId = item.projectId;
+                                                if (!cId && item.contentId) {
+                                                    cId = typeof item.contentId === 'object' ? item.contentId._id || item.contentId.id : item.contentId;
+                                                }
+                                                const episodeId = item.episodeId || item._id;
 
                                                 return (
-                                                    <Link href={`/project/${cId}`} key={item._id}>
+                                                    <Link href={`/project/${cId}?tab=Episodes&episode=${episodeId}&time=${Math.floor(currentTime)}`} key={episodeId || idx}>
                                                         <div className="cursor-pointer group flex flex-col gap-2">
                                                             <div className="aspect-video relative overflow-hidden bg-[#1c1c1c] rounded-2xl">
-                                                                {item.contentThumbnail ? (
-                                                                    <Image src={getFileUrl(item.contentThumbnail)} alt={item.contentTitle} fill className="object-cover group-hover:scale-105 transition-transform" />
+                                                                {item.contentThumbnail || item.thumbnail ? (
+                                                                    <Image src={getFileUrl(item.contentThumbnail || item.thumbnail)} alt={item.contentTitle || item.episodeTitle || ''} fill className="object-cover group-hover:scale-105 transition-transform" />
                                                                 ) : (
                                                                     <div className="w-full h-full bg-gray-900" />
                                                                 )}
@@ -293,7 +296,7 @@ function SearchContent() {
                                                                 </div>
                                                             </div>
                                                             <div className="flex justify-between items-center px-1">
-                                                                <h3 className="text-sm font-bold truncate flex-1">{item.contentTitle}</h3>
+                                                                <h3 className="text-sm font-bold truncate flex-1">{item.contentTitle || item.episodeTitle}</h3>
                                                                 <span className="text-[11px] text-gray-400 whitespace-nowrap ml-2">{timeString}</span>
                                                             </div>
                                                         </div>
@@ -309,7 +312,6 @@ function SearchContent() {
                                     <section>
                                         <div className="flex justify-between items-center mb-4">
                                             <h2 className="text-xl md:text-2xl font-bold">Projects in New Cairo</h2>
-                                            <Link href="/projects" className="text-red-500 text-sm font-semibold hover:underline">View all</Link>
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {newCairoProjects.map(proj => (

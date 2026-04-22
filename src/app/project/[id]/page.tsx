@@ -202,6 +202,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
 
   // Check for tab and episode query parameters on mount
   const [autoPlayEpisodeId, setAutoPlayEpisodeId] = useState<string | null>(null);
+  const [autoPlayTime, setAutoPlayTime] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -213,6 +214,10 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
       const episodeParam = params.get('episode');
       if (episodeParam) {
         setAutoPlayEpisodeId(episodeParam);
+      }
+      const timeParam = params.get('time');
+      if (timeParam) {
+        setAutoPlayTime(parseInt(timeParam));
       }
     }
   }, []);
@@ -227,6 +232,10 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
         // Play video after modal opens
         setTimeout(() => {
           if (videoModalRef.current) {
+            if (autoPlayTime) {
+              videoModalRef.current.currentTime = autoPlayTime;
+              setAutoPlayTime(null);
+            }
             videoModalRef.current.play().catch(() => { });
           }
         }, 300);
