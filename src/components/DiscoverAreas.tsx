@@ -38,7 +38,7 @@ export default function DiscoverAreas() {
           // Extract unique locations and count projects per location
           const locationMap = new Map<string, number>();
           projectsData.forEach((project: any) => {
-            if (project.location) {
+            if (project.location && project.published === true) {
               const location = project.location.trim();
               locationMap.set(location, (locationMap.get(location) || 0) + 1);
             }

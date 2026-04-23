@@ -117,8 +117,9 @@ export default function UpcomingProjects() {
         }
 
         if (Array.isArray(data)) {
-          setProjects(data);
-          console.log(`Set ${data.length} upcoming projects`);
+          const publishedProjects = data.filter((p: any) => p.published === true);
+          setProjects(publishedProjects);
+          console.log(`Set ${publishedProjects.length} upcoming projects`);
         } else {
           console.warn('Upcoming projects data is not an array:', data);
           setProjects([]);

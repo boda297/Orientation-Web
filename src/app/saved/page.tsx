@@ -41,7 +41,7 @@ export default function SavedProjectsPage() {
         );
         
         const projects = await Promise.all(projectsPromises);
-        const validProjects = projects.filter((p): p is Project => p !== null);
+        const validProjects = projects.filter((p): p is Project => p !== null && (p as any).published === true);
         
         setSavedProjects(validProjects);
       } catch (error) {

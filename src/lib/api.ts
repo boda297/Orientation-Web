@@ -161,6 +161,15 @@ export const api = {
     return response.json();
   },
 
+  // Get latest projects
+  getLatestProjects: async (limit: number = 10) => {
+    const response = await fetch(getApiUrl(`/projects/latest?limit=${limit}`));
+    if (!response.ok) {
+      throw new Error(`Failed to fetch latest projects: ${response.statusText}`);
+    }
+    return response.json();
+  },
+
   // Get projects by status
   getProjectsByStatus: async (status: string) => {
     const response = await fetch(
@@ -170,6 +179,15 @@ export const api = {
       throw new Error(
         `Failed to fetch projects by status: ${response.statusText}`,
       );
+    }
+    return response.json();
+  },
+
+  // Get all news
+  getNews: async () => {
+    const response = await fetch(getApiUrl("/news"));
+    if (!response.ok) {
+      throw new Error(`Failed to fetch news: ${response.statusText}`);
     }
     return response.json();
   },

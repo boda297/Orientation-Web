@@ -62,8 +62,9 @@ function SearchContent() {
                     api.getProjectsByLocation('New Cairo')
                 ]);
 
-                setLatestProjects(Array.isArray(latestRes.projects) ? latestRes.projects : (Array.isArray(latestRes) ? latestRes : []));
-                
+                const rawLatest = Array.isArray(latestRes.projects) ? latestRes.projects : (Array.isArray(latestRes) ? latestRes : []);
+                setLatestProjects(rawLatest.filter((p: any) => p.published === true));
+
                 let cwData = cwRes?.items || [];
                 if (cwData.length === 0 && typeof window !== 'undefined') {
                     const localHistory = JSON.parse(localStorage.getItem('watchHistory') || '[]');
@@ -72,7 +73,7 @@ function SearchContent() {
                 setContinueWatching(cwData);
 
                 const nc = Array.isArray(newCairoRes.projects) ? newCairoRes.projects : (Array.isArray(newCairoRes) ? newCairoRes : []);
-                setNewCairoProjects(nc.slice(0, 4));
+                setNewCairoProjects(nc.filter((p: any) => p.published === true).slice(0, 4));
             } catch (err) {
                 console.warn('Failed to fetch discovery', err);
             } finally {
@@ -98,8 +99,9 @@ function SearchContent() {
                 // Fetch all and filter client side to support substring
                 const res = await api.getProjects({ limit: 100 });
                 const all = Array.isArray(res.projects) ? res.projects : (Array.isArray(res) ? res : []);
+                const publishedAll = all.filter((p: any) => p.published === true);
 
-                let filtered = all.filter((p: SearchItem) =>
+                let filtered = publishedAll.filter((p: SearchItem) =>
                     (p.title || p.name)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     p.location?.toLowerCase().includes(searchQuery.toLowerCase())
                 );
@@ -107,7 +109,7 @@ function SearchContent() {
                 if (activeTab === 'Developers') {
                     filtered = []; // Placeholder
                 } else if (activeTab === 'Areas') {
-                    filtered = all.filter((p: SearchItem) => p.location?.toLowerCase().includes(searchQuery.toLowerCase()));
+                    filtered = publishedAll.filter((p: SearchItem) => p.location?.toLowerCase().includes(searchQuery.toLowerCase()));
                 }
 
                 setResults(filtered);
