@@ -1,6 +1,5 @@
 # Orientation App
 
-## 1. Short Description
 **Orientation App** is a comprehensive full-stack web application designed to streamline the student orientation process[cite: 1]. Developed using **Next.js** and **TypeScript**, the platform provides a centralized hub for discovering academic areas, managing projects, and connecting developers with upcoming student orientations[cite: 1]. It features a robust dashboard for administrative oversight and personalized user experiences for students and developers[cite: 1].
 
 ## 2. Features
@@ -54,5 +53,6 @@ This project and all associated video content are proprietary.
 
 © 2026 FBM Team. All Rights Reserved.
 
-All videos and shows on this platform are trademarks of, and all related images and content are the property of, Aziz Film. Duplication and copying of this material is strictly prohibited. Unauthorised reproduction, distribution, or modification of any part of this codebase or its content — in whole or in part — is not permitted without explicit written consent from AlRawaabit.
+All videos and shows on this platform are trademarks of, and all related images and content are the property of, Aziz Film. Duplication and copying of this material is strictly prohibited. Unauthorised reproduction, distribution, or modification of any part of this codebase or its content — in whole or in part — is not permitted without explicit written consent from FBM Team.
+
 ```
