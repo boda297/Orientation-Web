@@ -1,7 +1,3 @@
-Below is the updated **README.md** for the **Orientation-Web** project, incorporating the five requested fields based on the project structure and context[cite: 1].
-
----
-
 # Orientation App
 
 ## 1. Short Description
