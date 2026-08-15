@@ -10,6 +10,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const router = useRouter();
     const pathname = usePathname();
     const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+    const [userRole, setUserRole] = useState<string | null>(null);
 
     useEffect(() => {
         const checkAdmin = () => {
@@ -22,6 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 if (payload.role === 'ADMIN' || payload.role === 'admin' || payload.role === 'superadmin') {
                     setIsAdmin(true);
+                    setUserRole(payload.role.toLowerCase());
                 } else {
                     router.push('/');
                 }
@@ -32,6 +34,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         };
         checkAdmin();
     }, [router]);
+
+    useEffect(() => {
+        if (userRole && userRole !== 'superadmin' && pathname.startsWith('/dashboard/users')) {
+            router.push('/dashboard');
+        }
+    }, [userRole, pathname, router]);
 
     if (isAdmin === null) {
         return <div className="min-h-screen bg-black flex justify-center items-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div></div>;
@@ -78,6 +86,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 <nav className="flex flex-col gap-2 px-4 pb-6">
                     {navLinks.map((link) => {
+                        if (link.label === 'Users' && userRole !== 'superadmin') {
+                            return null;
+                        }
+
                         // For exact overview match, or starts with for sections
                         const isActive = link.href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(link.href);
                         const Icon = link.icon;

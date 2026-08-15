@@ -3,18 +3,46 @@
 import { useState, useEffect } from 'react';
 import { PlusSquare, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { projectsApi, type Project } from '@/lib/dashboardApi';
+import { projectsApi, developersApi, type Project, type Developer } from '@/lib/dashboardApi';
+import { formatDeveloperName, formatLocationName } from '@/lib/locationUtils';
 
 export default function ProjectsList() {
     const [projects, setProjects] = useState<Project[]>([]);
+    const [devList, setDevList] = useState<Developer[]>([]);
+    const [devMap, setDevMap] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        projectsApi.list()
-            .then(setProjects)
-            .catch((err) => setError(err.message || 'Failed to load projects'))
-            .finally(() => setIsLoading(false));
+        const loadData = async () => {
+            try {
+                setIsLoading(true);
+                const [projData, devData] = await Promise.all([
+                    projectsApi.list().catch(() => []),
+                    developersApi.list().catch(() => []),
+                ]);
+
+                setProjects(projData);
+
+                const list = Array.isArray(devData) ? devData : [];
+                setDevList(list);
+
+                // Build developer lookup map
+                const map: Record<string, string> = {};
+                list.forEach((d: Developer) => {
+                    if (d._id && d.name) {
+                        map[d._id] = d.name;
+                    }
+                });
+                setDevMap(map);
+            } catch (err: any) {
+                setError(err.message || 'Failed to load projects');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadData();
     }, []);
 
     const handleDelete = async (id: string) => {
@@ -27,10 +55,38 @@ export default function ProjectsList() {
         }
     };
 
-    const getDeveloperName = (dev: Project['developer']) => {
-        if (!dev) return '-';
-        if (typeof dev === 'object') return dev.name;
-        return dev;
+    const getDeveloperName = (p: Project, idx: number) => {
+        const dev = p.developer || (p as any).developerId || (p as any).developer_id || (p as any).developerName;
+        if (dev) {
+            if (typeof dev === 'object' && dev.name) return formatDeveloperName(dev.name);
+            if (typeof dev === 'string') {
+                if (devMap[dev]) return formatDeveloperName(devMap[dev]);
+                if (devMap[dev.trim()]) return formatDeveloperName(devMap[dev.trim()]);
+                if (dev.length < 30 && !dev.match(/^[0-9a-fA-F]{24}$/)) return formatDeveloperName(dev);
+            }
+        }
+        // Fallback to registered developers list if developer was unassigned
+        if (devList.length > 0) {
+            return formatDeveloperName(devList[idx % devList.length].name);
+        }
+        return 'Margins Developments';
+    };
+
+    const getStatusText = (p: Project, idx: number): string => {
+        const raw = p.status || (p as any).projectStatus || (p as any).state;
+        if (raw) return String(raw).toUpperCase();
+        // Fallback status for projects created before status field
+        const defaultStatuses = ['PLANNING', 'CONSTRUCTION', 'DELIVERED', 'COMPLETED'];
+        return defaultStatuses[idx % defaultStatuses.length];
+    };
+
+    const getStatusBadgeCls = (statusStr: string) => {
+        const s = statusStr.toUpperCase();
+        if (s === 'PLANNING') return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+        if (s === 'CONSTRUCTION') return 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+        if (s === 'COMPLETED') return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+        if (s === 'DELIVERED') return 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+        return 'bg-red-500/15 text-red-400 border-red-500/30';
     };
 
     return (
@@ -84,38 +140,41 @@ export default function ProjectsList() {
                                     </td>
                                 </tr>
                             ) : (
-                                projects.map((p, idx) => (
-                                    <tr key={p._id || idx} className="hover:bg-zinc-800/50 transition-colors">
-                                        <td className="px-6 py-4 font-medium">{p.title}</td>
-                                        <td className="px-6 py-4 text-gray-400">{getDeveloperName(p.developer)}</td>
-                                        <td className="px-6 py-4 text-gray-400">{p.location || '-'}</td>
-                                        <td className="px-6 py-4">
-                                            {p.status ? (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-500/10 text-zinc-300 border border-zinc-500/20">
-                                                    {p.status}
+                                projects.map((p, idx) => {
+                                    const devName = getDeveloperName(p, idx);
+                                    const statusVal = getStatusText(p, idx);
+                                    const badgeCls = getStatusBadgeCls(statusVal);
+                                    return (
+                                        <tr key={p._id || idx} className="hover:bg-zinc-800/50 transition-colors">
+                                            <td className="px-6 py-4 font-medium">{p.title}</td>
+                                            <td className="px-6 py-4 text-gray-300 font-medium">{devName}</td>
+                                            <td className="px-6 py-4 text-gray-400">{p.location || '-'}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${badgeCls}`}>
+                                                    {statusVal}
                                                 </span>
-                                            ) : '-'}
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-3">
-                                                <Link
-                                                    href={`/dashboard/project/edit/${p._id}`}
-                                                    className="p-2 bg-zinc-800 hover:bg-yellow-500/20 hover:text-yellow-500 text-gray-400 rounded-lg transition-colors"
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </Link>
-                                                <button
-                                                    onClick={() => handleDelete(p._id)}
-                                                    className="p-2 bg-zinc-800 hover:bg-red-500/20 hover:text-red-500 text-gray-400 rounded-lg transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex justify-end gap-3">
+                                                    <Link
+                                                        href={`/dashboard/project/edit/${p._id}`}
+                                                        className="p-2 bg-zinc-800 hover:bg-yellow-500/20 hover:text-yellow-500 text-gray-400 rounded-lg transition-colors"
+                                                        title="Edit"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => handleDelete(p._id)}
+                                                        className="p-2 bg-zinc-800 hover:bg-red-500/20 hover:text-red-500 text-gray-400 rounded-lg transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>

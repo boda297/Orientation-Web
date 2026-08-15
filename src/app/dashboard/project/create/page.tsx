@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { projectsApi, developersApi, type Developer } from '@/lib/dashboardApi';
+import LocationSelect from '@/components/LocationSelect';
+import StatusSelect, { type ProjectStatus } from '@/components/StatusSelect';
+import { formatLocationName } from '@/lib/locationUtils';
 
 /** Square image upload with live preview */
 function ImageZone({
@@ -114,6 +117,7 @@ export default function CreateProjectPage() {
     const [title, setTitle] = useState('');
     const [developerId, setDeveloperId] = useState('');
     const [location, setLocation] = useState('');
+    const [status, setStatus] = useState('PLANNING');
     const [whatsapp, setWhatsapp] = useState('');
     const [script, setScript] = useState('');
 
@@ -131,7 +135,7 @@ export default function CreateProjectPage() {
     }, []);
 
     const resetForm = () => {
-        setTitle(''); setDeveloperId(''); setLocation(''); setWhatsapp(''); setScript('');
+        setTitle(''); setDeveloperId(''); setLocation(''); setStatus('PLANNING'); setWhatsapp(''); setScript('');
         setThumbnail(null); setLogoImage(null); setHeroVideo(null);
     };
 
@@ -146,10 +150,12 @@ export default function CreateProjectPage() {
         if (!developerId) { setError('Please select a developer.'); setLoading(false); return; }
 
         try {
+            const formattedLocation = formatLocationName(location);
             await projectsApi.create({
                 title,
                 developer: developerId,
-                location,
+                location: formattedLocation,
+                status,
                 script,
                 whatsappNumber: whatsapp || undefined,
                 projectThumbnail: thumbnail ?? undefined,
@@ -234,13 +240,19 @@ export default function CreateProjectPage() {
                             <label className="text-sm font-semibold text-gray-300">
                                 Location <span className="text-red-500">*</span>
                             </label>
-                            <input
-                                type="text"
+                            <LocationSelect
                                 value={location}
-                                onChange={(e) => setLocation(e.target.value)}
+                                onChange={setLocation}
                                 required
-                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
-                                placeholder="e.g. New Cairo"
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">
+                                Project Status <span className="text-red-500">*</span>
+                            </label>
+                            <StatusSelect
+                                value={status}
+                                onChange={(s) => setStatus(s)}
                             />
                         </div>
                         <div className="flex flex-col gap-2">

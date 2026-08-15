@@ -21,14 +21,23 @@ export default function LatestOrientations() {
   useEffect(() => {
     const fetchOrientations = async () => {
       try {
-        // Fetch latest projects (sorted by newest)
-        const projects = await api.getProjects({
-          sortBy: 'newest',
-          limit: 10
-        });
+        // Fetch latest projects from the new endpoint
+        const projects = await api.getLatestProjects(10);
 
-        if (Array.isArray(projects)) {
-          setOrientations(projects);
+        let projectsData = projects;
+        if (projects && typeof projects === 'object' && !Array.isArray(projects)) {
+          if (Array.isArray(projects.data)) {
+            projectsData = projects.data;
+          } else if (Array.isArray(projects.projects)) {
+            projectsData = projects.projects;
+          } else if (Array.isArray(projects.results)) {
+            projectsData = projects.results;
+          }
+        }
+
+        if (Array.isArray(projectsData)) {
+          const publishedProjects = projectsData.filter((p: any) => p.published === true);
+          setOrientations(publishedProjects);
         }
       } catch (error) {
         console.error('Error fetching latest orientations:', error);
@@ -66,17 +75,10 @@ export default function LatestOrientations() {
         const firstChild = container.children[0] as HTMLElement;
         const scrollAmount = firstChild ? firstChild.offsetWidth + 24 : 300;
 
-        if (container.scrollLeft >= container.scrollWidth / 2 - scrollAmount) {
-          // Reset instantly
-          container.style.scrollBehavior = 'auto';
+        if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 10) {
+          // Rewind smoothly to the start
+          container.style.scrollBehavior = 'smooth';
           container.scrollLeft = 0;
-
-          setTimeout(() => {
-            if (container) {
-              container.style.scrollBehavior = 'smooth';
-              container.scrollLeft += scrollAmount;
-            }
-          }, 50);
         } else {
           container.style.scrollBehavior = 'smooth';
           container.scrollLeft += scrollAmount;
@@ -141,9 +143,9 @@ export default function LatestOrientations() {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {[...orientations, ...orientations].map((orientation, index) => (
+        {orientations.map((orientation, index) => (
           <Link
-            key={`${orientation._id}-${index}`}
+            key={orientation._id}
             href={`/project/${orientation._id}`}
             onClick={(e) => isDragging && e.preventDefault()}
             className={`flex-shrink-0 w-48 sm:w-56 md:w-64 lg:w-72 group relative ${index === 0 ? 'pl-4 md:pl-6' : ''} ${index === orientations.length - 1 ? 'pr-4 md:pr-6' : ''}`}

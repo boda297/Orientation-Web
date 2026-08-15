@@ -4,10 +4,14 @@ import { useState, useRef } from 'react';
 import { CheckCircle2, Loader2, Building2, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { developersApi } from '@/lib/dashboardApi';
+import LocationSelect from '@/components/LocationSelect';
+import StatusSelect from '@/components/StatusSelect';
+import { formatLocationName, formatDeveloperName } from '@/lib/locationUtils';
 
 export default function CreateDeveloperPage() {
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
+    const [status, setStatus] = useState('PLANNING');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [socialMediaLink, setSocialMediaLink] = useState('');
@@ -26,9 +30,11 @@ export default function CreateDeveloperPage() {
         setError('');
 
         try {
+            const formattedName = formatDeveloperName(name);
+            const formattedLocation = formatLocationName(location);
             await developersApi.create({
-                name,
-                location,
+                name: formattedName,
+                location: formattedLocation,
                 email: email || undefined,
                 phone: phone || undefined,
                 socialMediaLink: socialMediaLink || undefined,
@@ -36,6 +42,7 @@ export default function CreateDeveloperPage() {
             setSuccess(true);
             setName('');
             setLocation('');
+            setStatus('PLANNING');
             setEmail('');
             setPhone('');
             setSocialMediaLink('');
@@ -91,6 +98,7 @@ export default function CreateDeveloperPage() {
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
+                                onBlur={() => setName(formatDeveloperName(name))}
                                 required
                                 className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
                                 placeholder="e.g. Margins Developments"
@@ -101,13 +109,20 @@ export default function CreateDeveloperPage() {
                             <label className="text-sm font-semibold text-gray-300">
                                 Location <span className="text-red-500">*</span>
                             </label>
-                            <input
-                                type="text"
+                            <LocationSelect
                                 value={location}
-                                onChange={(e) => setLocation(e.target.value)}
+                                onChange={setLocation}
                                 required
-                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
-                                placeholder="e.g. New Cairo"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">
+                                Status <span className="text-red-500">*</span>
+                            </label>
+                            <StatusSelect
+                                value={status}
+                                onChange={(s) => setStatus(s)}
                             />
                         </div>
 

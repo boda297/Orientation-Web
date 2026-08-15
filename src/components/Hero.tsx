@@ -29,7 +29,8 @@ export default function Hero() {
       try {
         const projects = await api.getFeaturedProjects(3);
         if (Array.isArray(projects) && projects.length > 0) {
-          setFeaturedProjects(projects.slice(0, 3));
+          const publishedProjects = projects.filter((p: any) => p.published === true);
+          setFeaturedProjects(publishedProjects.slice(0, 3));
         }
       } catch (error) {
         console.error('Error fetching featured projects:', error);

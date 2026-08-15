@@ -40,8 +40,9 @@ export default function TrendingProjects() {
 
         if (Array.isArray(projectsData)) {
           // Limit to 10 projects
-          setProjects(projectsData.slice(0, 10));
-          console.log(`Set ${Math.min(projectsData.length, 10)} trending projects`);
+          const publishedProjects = projectsData.filter((p: any) => p.published === true);
+          setProjects(publishedProjects.slice(0, 10));
+          console.log(`Set ${Math.min(publishedProjects.length, 10)} trending projects`);
         } else {
           console.warn('Trending projects data is not an array:', projectsData);
           setProjects([]);
@@ -83,17 +84,10 @@ export default function TrendingProjects() {
         const firstChild = container.children[0] as HTMLElement;
         const scrollAmount = firstChild ? firstChild.offsetWidth + 24 : 300;
 
-        if (container.scrollLeft >= container.scrollWidth / 2 - scrollAmount) {
-          // Reset instantly
-          container.style.scrollBehavior = 'auto';
+        if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 10) {
+          // Rewind smoothly to the start
+          container.style.scrollBehavior = 'smooth';
           container.scrollLeft = 0;
-          
-          setTimeout(() => {
-            if (container) {
-              container.style.scrollBehavior = 'smooth';
-              container.scrollLeft += scrollAmount;
-            }
-          }, 50);
         } else {
           container.style.scrollBehavior = 'smooth';
           container.scrollLeft += scrollAmount;
@@ -159,14 +153,14 @@ export default function TrendingProjects() {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {[...projects, ...projects].map((project, index) => {
-          const rank = (index % projects.length) + 1;
+        {projects.map((project, index) => {
+          const rank = index + 1;
           return (
             <Link
-              key={`${project._id}-${index}`}
+              key={project._id}
               href={`/project/${project._id}`}
               onClick={(e) => isDragging && e.preventDefault()}
-              className={`flex-shrink-0 w-48 sm:w-56 md:w-64 lg:w-72 group relative ${index === 0 ? 'pl-4 md:pl-6' : ''} ${index === (projects.length * 2) - 1 ? 'pr-4 md:pr-6' : ''}`}
+              className={`flex-shrink-0 w-48 sm:w-56 md:w-64 lg:w-72 group relative ${index === 0 ? 'pl-4 md:pl-6' : ''} ${index === projects.length - 1 ? 'pr-4 md:pr-6' : ''}`}
             >
               <div className="relative aspect-[4/5] bg-gray-800 overflow-hidden rounded-lg">
                 {/* Background Image */}

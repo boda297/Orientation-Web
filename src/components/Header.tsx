@@ -71,24 +71,27 @@ export default function Header() {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center justify-center gap-4 lg:gap-6 flex-1">
-              <Link href="/" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
+            <nav className="hidden lg:flex items-center justify-center gap-3 lg:gap-6 flex-1">
+              <Link href="/" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
                 Home
               </Link>
-              <Link href="/areas" onClick={(e) => handleProtectedNav(e, '/areas')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
+              <Link href="/areas" onClick={(e) => handleProtectedNav(e, '/areas')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
                 Area
               </Link>
-              <Link href="/news" onClick={(e) => handleProtectedNav(e, '/news')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
+              <Link href="/news" onClick={(e) => handleProtectedNav(e, '/news')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
                 News
               </Link>
-              <Link href="/courses" onClick={(e) => handleProtectedNav(e, '/courses')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
+              <Link href="/courses" onClick={(e) => handleProtectedNav(e, '/courses')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
                 Courses
               </Link>
-              <Link href="/tv" onClick={(e) => handleProtectedNav(e, '/tv')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
+              <Link href="/tv" onClick={(e) => handleProtectedNav(e, '/tv')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
                 TV
               </Link>
-              <Link href="/about" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base">
+              <Link href="/about" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
                 About Us
+              </Link>
+              <Link href="/checkout" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
+                Pricing
               </Link>
             </nav>
 
@@ -168,6 +171,9 @@ export default function Header() {
               </Link>
               <Link href="/about" className="block text-white hover:text-red-600 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
                 About Us
+              </Link>
+              <Link href="/checkout" className="block text-white hover:text-red-600 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+                Pricing
               </Link>
               {/* Mobile Auth Buttons */}
               {hasMounted && (

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Image as ImageIcon, Building2, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { developersApi, getFileUrl, type Developer } from '@/lib/dashboardApi';
+import { formatDeveloperName, formatLocationName } from '@/lib/locationUtils';
 
 export default function DevelopersList() {
     const [developers, setDevelopers] = useState<Developer[]>([]);
@@ -95,18 +96,19 @@ export default function DevelopersList() {
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 font-medium">{d.name}</td>
+                                            <td className="px-6 py-4 font-medium">{formatDeveloperName(d.name)}</td>
                                             <td className="px-6 py-4 text-gray-400">
-                                                {d.location || '-'}
+                                                {d.location ? formatLocationName(d.location) : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-3">
-                                                    <button
+                                                    <Link
+                                                        href={`/dashboard/developer/edit/${d._id}`}
                                                         className="p-2 bg-zinc-800 hover:bg-yellow-500/20 hover:text-yellow-500 text-gray-400 rounded-lg transition-colors"
                                                         title="Edit"
                                                     >
                                                         <Edit className="w-4 h-4" />
-                                                    </button>
+                                                    </Link>
                                                     <button
                                                         onClick={() => handleDelete(d._id)}
                                                         className="p-2 bg-zinc-800 hover:bg-red-500/20 hover:text-red-500 text-gray-400 rounded-lg transition-colors"

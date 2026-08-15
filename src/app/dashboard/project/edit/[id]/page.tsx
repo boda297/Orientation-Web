@@ -10,6 +10,8 @@ import {
 import Link from 'next/link';
 import { getApiUrl, getFileUrl } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
+import LocationSelect from '@/components/LocationSelect';
+import { formatLocationName } from '@/lib/locationUtils';
 
 interface Developer { _id: string; name: string; }
 interface Episode {
@@ -297,10 +299,11 @@ function ProjectDetailsTab({ project, developers, id, onUpdate }: {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault(); setLoading(true); setBanner(null);
         try {
+            const formattedLocation = formatLocationName(location);
             const fd = new FormData();
             fd.append('title', title);
             if (developerId) fd.append('developer', developerId);
-            if (location) fd.append('location', location);
+            if (formattedLocation) fd.append('location', formattedLocation);
             if (whatsapp) fd.append('whatsappNumber', whatsapp);
             if (status) fd.append('status', status);
             if (script) fd.append('script', script);
@@ -345,7 +348,7 @@ function ProjectDetailsTab({ project, developers, id, onUpdate }: {
                     </div>
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-semibold text-gray-300">Location</label>
-                        <input type="text" value={location} onChange={e => setLocation(e.target.value)} className={inputCls} placeholder="e.g. New Cairo" />
+                        <LocationSelect value={location} onChange={setLocation} />
                     </div>
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-semibold text-gray-300">WhatsApp Number</label>

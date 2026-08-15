@@ -3,6 +3,7 @@
 
 import { getApiUrl, getFileUrl } from './api';
 import { getAccessToken } from './auth';
+import { fetchWithAuth } from './fetchWithAuth';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -83,13 +84,28 @@ export interface CreateUserPayload {
   phoneNumber: string;
 }
 
+export interface UpdateUserPayload {
+  username?: string;
+  email?: string;
+  phoneNumber?: string;
+  role?: string;
+  password?: string;
+}
+
+export interface UpdateDeveloperPayload {
+  name?: string;
+  location?: string;
+  email?: string;
+  phone?: string;
+  socialMediaLink?: string;
+}
+
 export interface CreateDeveloperPayload {
   name: string;
   location: string;
   email?: string;
   phone?: string;
   socialMediaLink?: string;
-  logo?: File;
 }
 
 export interface CreateProjectPayload {
@@ -186,19 +202,15 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = {};
 
-  if (auth) {
-    const token = getAccessToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-  }
-
   const isFormData = options.body instanceof FormData;
   if (!isFormData) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(getApiUrl(endpoint), {
+  const res = await fetchWithAuth(getApiUrl(endpoint), {
     ...options,
     headers: { ...headers, ...((options.headers as Record<string, string>) || {}) },
+    auth,
   });
 
   if (!res.ok) {
@@ -241,8 +253,12 @@ export const usersApi = {
     request<User[]>('/users').then((data) =>
       Array.isArray(data) ? data : ((data as any)?.users || (data as any)?.data || [])
     ),
+  get: (id: string): Promise<User> =>
+    request<User>(`/users/${id}`),
   create: (payload: CreateUserPayload): Promise<User> =>
     request<User>('/users', { method: 'POST', body: JSON.stringify(payload) }),
+  update: (id: string, payload: UpdateUserPayload): Promise<User> =>
+    request<User>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   delete: (id: string): Promise<void> =>
     request<void>(`/users/${id}`, { method: 'DELETE' }),
 };
@@ -252,10 +268,13 @@ export const developersApi = {
     request<Developer[]>('/developer').then((data) =>
       Array.isArray(data) ? data : ((data as any)?.developers || (data as any)?.data || [])
     ),
+  get: (id: string): Promise<Developer> =>
+    request<Developer>(`/developer/${id}`),
   create: (payload: CreateDeveloperPayload): Promise<Developer> => {
-    const fd = toFormData(payload as any);
-    return request<Developer>('/developer', { method: 'POST', body: fd });
+    return request<Developer>('/developer', { method: 'POST', body: JSON.stringify(payload) });
   },
+  update: (id: string, payload: UpdateDeveloperPayload): Promise<Developer> =>
+    request<Developer>(`/developer/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   delete: (id: string): Promise<void> =>
     request<void>(`/developer/${id}`, { method: 'DELETE' }),
 };

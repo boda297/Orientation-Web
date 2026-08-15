@@ -119,8 +119,9 @@ export default function ProjectsByArea({ title, location }: ProjectsByAreaProps)
         }
 
         if (Array.isArray(data)) {
-          setProjects(data);
-          console.log(`✅ Set ${data.length} projects for ${location}`);
+          const publishedProjects = data.filter((p: any) => p.published === true);
+          setProjects(publishedProjects);
+          console.log(`✅ Set ${publishedProjects.length} projects for ${location}`);
         } else {
           console.warn(`Data is not an array for ${location}:`, data);
           setProjects([]);

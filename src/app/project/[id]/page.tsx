@@ -314,8 +314,8 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
             }
 
             if (Array.isArray(projectsList)) {
-              // Filter out current project
-              const filtered = projectsList.filter((p: Project) => p._id !== resolvedParams.id);
+              // Filter out current project and unpublished projects
+              const filtered = projectsList.filter((p: Project) => p._id !== resolvedParams.id && (p as any).published === true);
               setRelatedProjects(filtered);
             }
           } catch (err) {
