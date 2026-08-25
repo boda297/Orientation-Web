@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { api, getFileUrl } from '@/lib/api';
+import { useHomepageData } from '@/lib/hooks/useHomepageData';
+import { getFileUrl } from '@/lib/http/url';
 
 interface Project {
   _id: string;
@@ -18,45 +19,19 @@ export default function TrendingProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Read from shared context — no individual API call needed
+  const { top10Projects, loading: contextLoading } = useHomepageData();
+
   useEffect(() => {
-    const fetchTrendingProjects = async () => {
-      try {
-        setLoading(true);
-        console.log('Fetching trending projects...');
-        const data = await api.getTrendingProjects(10);
-        console.log('Received trending projects:', data);
-
-        // Handle if response is an object with a data/projects array
-        let projectsData = data;
-        if (data && typeof data === 'object' && !Array.isArray(data)) {
-          if (Array.isArray(data.data)) {
-            projectsData = data.data;
-          } else if (Array.isArray(data.projects)) {
-            projectsData = data.projects;
-          } else if (Array.isArray(data.results)) {
-            projectsData = data.results;
-          }
-        }
-
-        if (Array.isArray(projectsData)) {
-          // Limit to 10 projects
-          const publishedProjects = projectsData.filter((p: any) => p.published === true);
-          setProjects(publishedProjects.slice(0, 10));
-          console.log(`Set ${Math.min(publishedProjects.length, 10)} trending projects`);
-        } else {
-          console.warn('Trending projects data is not an array:', projectsData);
-          setProjects([]);
-        }
-      } catch (error) {
-        console.error('Error fetching trending projects:', error);
-        setProjects([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTrendingProjects();
-  }, []);
+    if (!contextLoading) {
+      // Filter published projects from the shared top10 list (0 network requests)
+      const published = top10Projects
+        .filter((p: any) => p.published === true || p.published === undefined)
+        .slice(0, 10);
+      setProjects(published as any);
+      setLoading(false);
+    }
+  }, [top10Projects, contextLoading]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);

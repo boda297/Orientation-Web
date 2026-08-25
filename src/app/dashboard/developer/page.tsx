@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Image as ImageIcon, Building2, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Image as ImageIcon, Building2, Edit, Trash2, Plus, Loader2, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { developersApi, getFileUrl, type Developer } from '@/lib/dashboardApi';
 import { formatDeveloperName, formatLocationName } from '@/lib/locationUtils';
 
 export default function DevelopersList() {
     const [developers, setDevelopers] = useState<Developer[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -28,20 +29,51 @@ export default function DevelopersList() {
         }
     };
 
+    const filteredDevelopers = useMemo(() => {
+        const q = searchQuery.toLowerCase().trim();
+        if (!q) return developers;
+        return developers.filter((d) => {
+            const name = (d.name || '').toLowerCase();
+            const loc = (d.location || '').toLowerCase();
+            return name.includes(q) || loc.includes(q);
+        });
+    }, [developers, searchQuery]);
+
     return (
         <div className="animate-in fade-in duration-500 max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                     <Building2 className="w-8 h-8 text-red-500" />
                     Registered Developers
                 </h1>
                 <Link
                     href="/dashboard/developer/create"
-                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-red-600/20"
+                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-red-600/20 w-fit"
                 >
                     <Plus className="w-5 h-5" />
                     Create Developer
                 </Link>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative flex items-center bg-[#111] border border-zinc-800 focus-within:border-red-500 rounded-xl px-4 py-2.5 shadow-lg transition-colors">
+                <Search className="w-5 h-5 text-gray-400 flex-shrink-0 mr-3" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by developer name or location..."
+                    className="w-full bg-transparent text-white placeholder-zinc-500 outline-none text-sm"
+                />
+                {searchQuery && (
+                    <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-gray-400 hover:text-white p-1 ml-2 transition-colors"
+                        title="Clear search"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
             {error && (
@@ -71,14 +103,14 @@ export default function DevelopersList() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : developers.length === 0 ? (
+                            ) : filteredDevelopers.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                                        No developers found.
+                                        {searchQuery ? `No developers matching "${searchQuery}".` : 'No developers found.'}
                                     </td>
                                 </tr>
                             ) : (
-                                developers.map((d, idx) => {
+                                filteredDevelopers.map((d, idx) => {
                                     const logoSrc = d.logo;
                                     return (
                                         <tr key={d._id || idx} className="hover:bg-zinc-800/50 transition-colors">

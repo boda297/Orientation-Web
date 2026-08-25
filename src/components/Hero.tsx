@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { api, getFileUrl } from '@/lib/api';
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useHomepageData } from "@/lib/hooks/useHomepageData";
+import { getFileUrl } from "@/lib/http/url";
 
 interface FeaturedProject {
   _id: string;
@@ -15,6 +16,9 @@ interface FeaturedProject {
 }
 
 export default function Hero() {
+  // Read from shared context — no individual API call needed
+  const { featuredProjects: rawFeatured, loading: contextLoading } = useHomepageData();
+
   const [featuredProjects, setFeaturedProjects] = useState<FeaturedProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
@@ -24,30 +28,23 @@ export default function Hero() {
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const sectionRef = useRef<HTMLElement | null>(null);
 
+  // Derive featured projects from context (0 network requests)
   useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        const projects = await api.getFeaturedProjects(3);
-        if (Array.isArray(projects) && projects.length > 0) {
-          const publishedProjects = projects.filter((p: any) => p.published === true);
-          setFeaturedProjects(publishedProjects.slice(0, 3));
-        }
-      } catch (error) {
-        console.error('Error fetching featured projects:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFeatured();
-  }, []);
+    if (!contextLoading) {
+      const published = rawFeatured
+        .filter((p: any) => p.published === true)
+        .slice(0, 3) as FeaturedProject[];
+      setFeaturedProjects(published);
+      setLoading(false);
+    }
+  }, [rawFeatured, contextLoading]);
 
   // Play the active video and pause others
   useEffect(() => {
     videoRefs.current.forEach((video, index) => {
       if (!video) return;
       if (index === currentVideoIndex) {
-        video.play().catch(() => { });
+        video.play().catch(() => {});
       } else {
         video.pause();
         video.currentTime = 0; // Optional: Reset video when not active
@@ -68,12 +65,12 @@ export default function Hero() {
             });
           } else {
             if (videoRefs.current[currentVideoIndex]) {
-              videoRefs.current[currentVideoIndex]?.play().catch(() => { });
+              videoRefs.current[currentVideoIndex]?.play().catch(() => {});
             }
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     observer.observe(sectionRef.current);
@@ -86,11 +83,11 @@ export default function Hero() {
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       observer.disconnect();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       videoRefs.current.forEach((video) => {
         if (video) video.pause();
       });
@@ -100,7 +97,7 @@ export default function Hero() {
   const onTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
     setIsDragging(true);
     setDragOffset(0);
-    if ('targetTouches' in e) {
+    if ("targetTouches" in e) {
       setTouchStart(e.targetTouches[0].clientX);
     } else {
       setTouchStart((e as React.MouseEvent).clientX);
@@ -109,7 +106,10 @@ export default function Hero() {
 
   const onTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
     if (!isDragging || touchStart === null) return;
-    const currentX = 'targetTouches' in e ? e.targetTouches[0].clientX : (e as React.MouseEvent).clientX;
+    const currentX =
+      "targetTouches" in e
+        ? e.targetTouches[0].clientX
+        : (e as React.MouseEvent).clientX;
     const diff = currentX - touchStart;
     setDragOffset(diff);
   };
@@ -119,7 +119,8 @@ export default function Hero() {
     setIsDragging(false);
 
     // Dynamic threshold, 15% of window width
-    const threshold = typeof window !== 'undefined' ? window.innerWidth * 0.15 : 50;
+    const threshold =
+      typeof window !== "undefined" ? window.innerWidth * 0.15 : 50;
 
     if (dragOffset > threshold) {
       handlePrev();
@@ -143,7 +144,9 @@ export default function Hero() {
 
   const handlePrev = () => {
     if (featuredProjects.length === 0) return;
-    const prevIndex = (currentVideoIndex - 1 + featuredProjects.length) % featuredProjects.length;
+    const prevIndex =
+      (currentVideoIndex - 1 + featuredProjects.length) %
+      featuredProjects.length;
     changeVideo(prevIndex);
   };
 
@@ -163,7 +166,9 @@ export default function Hero() {
     return (
       <section className="relative w-full h-screen bg-black overflow-hidden">
         <div className="absolute inset-0 flex items-center justify-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white">ORIENTATION</h1>
+          <h1 className="text-4xl md:text-6xl font-bold text-white">
+            ORIENTATION
+          </h1>
         </div>
       </section>
     );
@@ -172,7 +177,7 @@ export default function Hero() {
   return (
     <section
       ref={sectionRef}
-      className={`relative w-full h-screen bg-black overflow-hidden select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      className={`relative w-full h-screen bg-black overflow-hidden select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -187,7 +192,9 @@ export default function Hero() {
         style={{
           width: `${featuredProjects.length * 100}%`,
           transform: `translateX(calc(-${(currentVideoIndex * 100) / featuredProjects.length}% + ${dragOffset}px))`,
-          transition: isDragging ? 'none' : 'transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)'
+          transition: isDragging
+            ? "none"
+            : "transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)",
         }}
       >
         {featuredProjects.map((project, index) => (
@@ -216,8 +223,8 @@ export default function Hero() {
                 style={{
                   backgroundImage: project.projectThumbnailUrl
                     ? `url(${getFileUrl(project.projectThumbnailUrl)})`
-                    : 'none',
-                  backgroundColor: '#000'
+                    : "none",
+                  backgroundColor: "#000",
                 }}
               />
             )}
@@ -226,7 +233,8 @@ export default function Hero() {
             <div
               className="absolute inset-0 z-10 pointer-events-none"
               style={{
-                background: 'linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.7) 80%, rgba(0,0,0,1) 100%)'
+                background:
+                  "linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.7) 80%, rgba(0,0,0,1) 100%)",
               }}
             />
 
@@ -236,7 +244,7 @@ export default function Hero() {
                 <div className="mb-6 md:mb-8">
                   <Image
                     src={getFileUrl(project.logoUrl)}
-                    alt={project.title || 'Logo'}
+                    alt={project.title || "Logo"}
                     width={300}
                     height={120}
                     className="h-16 md:h-24 lg:h-32 w-auto object-contain drop-shadow-2xl pointer-events-none"
@@ -254,16 +262,24 @@ export default function Hero() {
               <Link
                 href={`/project/${project._id}`}
                 className="mb-2"
-                onClick={(e) => isDragging && dragOffset !== 0 ? e.preventDefault() : null}
+                onClick={(e) =>
+                  isDragging && dragOffset !== 0 ? e.preventDefault() : null
+                }
               >
                 <button className="group pointer-events-auto relative overflow-hidden bg-gradient-to-r from-red-600 via-red-700 to-red-600 hover:from-red-700 hover:via-red-800 hover:to-red-700 text-white font-bold py-3 px-8 md:py-4 md:px-12 rounded-full text-base md:text-lg transition-all duration-500 flex items-center gap-3 shadow-2xl hover:shadow-red-500/60 hover:scale-110 active:scale-95">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                   <div className="relative z-10 w-8 h-8 bg-white/25 group-hover:bg-white/35 rounded-full flex items-center justify-center transition-all duration-300 group-hover:rotate-12 group-hover:scale-125">
-                    <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <svg
+                      className="w-5 h-5 ml-0.5"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
                       <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                     </svg>
                   </div>
-                  <span className="relative z-10 text-white font-bold tracking-wide">Watch</span>
+                  <span className="relative z-10 text-white font-bold tracking-wide">
+                    Watch
+                  </span>
                 </button>
               </Link>
             </div>
@@ -293,7 +309,7 @@ export default function Hero() {
                 e.stopPropagation();
                 changeVideo(index);
               }}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentVideoIndex ? 'bg-red-600 w-8' : 'bg-gray-600/50 hover:bg-gray-500'}`}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${index === currentVideoIndex ? "bg-red-600 w-8" : "bg-gray-600/50 hover:bg-gray-500"}`}
               aria-label={`Go to video ${index + 1}`}
             />
           ))}

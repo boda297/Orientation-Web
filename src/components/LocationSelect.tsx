@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, ChevronDown } from 'lucide-react';
-import { api } from '@/lib/api';
-import { developersApi } from '@/lib/dashboardApi';
+import { projectsApi } from '@/lib/api/projects.api';
+import { developersApi } from '@/lib/api/developer.api';
 import { formatLocationName, normalizeLocationList } from '@/lib/locationUtils';
 
 interface LocationSelectProps {
@@ -32,17 +32,12 @@ export default function LocationSelect({
             try {
                 setLoading(true);
                 const [projectsData, developersData] = await Promise.all([
-                    api.getProjects().catch(() => []),
+                    projectsApi.list().catch(() => []),
                     developersApi.list().catch(() => []),
                 ]);
 
-                let pList: any[] = [];
-                if (Array.isArray(projectsData)) pList = projectsData;
-                else if (projectsData && typeof projectsData === 'object') {
-                    pList = projectsData.data || projectsData.projects || projectsData.results || [];
-                }
-
-                let dList: any[] = Array.isArray(developersData) ? developersData : [];
+                const pList: any[] = Array.isArray(projectsData) ? projectsData : [];
+                const dList: any[] = Array.isArray(developersData) ? developersData : [];
 
                 const rawLocations: string[] = [
                     ...pList.map((p) => p.location),

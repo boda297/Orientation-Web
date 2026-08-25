@@ -1,3 +1,7 @@
+// ==========================================
+// 📥 Request Payloads
+// ==========================================
+
 export interface PaymobBillingData {
   first_name: string;
   last_name: string;
@@ -28,31 +32,6 @@ export interface PaymobIntentionPayload {
   }>;
 }
 
-export interface PaymobIntentionResponse {
-  id: string | number;
-  client_secret: string;
-  amount: number;
-  currency: string;
-  special_reference?: string;
-  status?: string;
-  created_at?: string;
-  detail?: string; // Present on error
-  message?: string; // Present on error
-}
-
-export interface SubscriptionPlan {
-  id: '3months' | '6months' | '1year';
-  title: string;
-  duration: string;
-  basePrice: number;
-  vatAndFees: number;
-  totalAmount: number; // In EGP
-  badge?: string;
-  isPopular?: boolean;
-  disabled?: boolean;
-  disabledReason?: string;
-}
-
 export interface CreateIntentionApiRequest {
   planId: string;
   amount: number; // In EGP (e.g. 106.76)
@@ -65,6 +44,41 @@ export interface CreateIntentionApiRequest {
   };
   orderId?: string;
   description?: string;
+}
+
+// ==========================================
+// 🗄️ Data Interface
+// ==========================================
+
+export interface ISubscriptionPlan {
+  id: '3months' | '6months' | '1year';
+  title: string;
+  duration: string;
+  basePrice: number;
+  vatAndFees: number;
+  totalAmount: number; // In EGP
+  badge?: string;
+  isPopular?: boolean;
+  disabled?: boolean;
+  disabledReason?: string;
+}
+
+export type SubscriptionPlan = ISubscriptionPlan;
+
+// ==========================================
+// 📤 API Responses
+// ==========================================
+
+export interface PaymobIntentionResponse {
+  id: string | number;
+  client_secret: string;
+  amount: number;
+  currency: string;
+  special_reference?: string;
+  status?: string;
+  created_at?: string;
+  detail?: string; // Present on error
+  message?: string; // Present on error
 }
 
 export interface CreateIntentionApiResponse {

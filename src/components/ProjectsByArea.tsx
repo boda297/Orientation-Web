@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { api, getFileUrl } from '@/lib/api';
+import { useHomepageData, filterByLocation } from '@/lib/hooks/useHomepageData';
+import { getFileUrl } from '@/lib/http/url';
 
 interface Project {
   _id: string;
@@ -16,128 +17,25 @@ interface Project {
 
 interface ProjectsByAreaProps {
   title: string;
-  location: string; // Location name to fetch from API
+  location: string; // Location name to filter by client-side
 }
 
 export default function ProjectsByArea({ title, location }: ProjectsByAreaProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Read from shared context — no individual API call needed
+  const { allProjects, loading: contextLoading } = useHomepageData();
+
   useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        setLoading(true);
-        console.log(`Fetching projects for location: "${location}"`);
-
-        // Try multiple location name variations
-        const locationVariations = [
-          location,
-          location.replace(/([A-Z])/g, ' $1').trim(), // "Northcoast" -> "Northcoast", "North Coast"
-          location.toLowerCase(),
-          location.toUpperCase(),
-        ];
-
-        // Remove duplicates
-        const uniqueVariations = [...new Set(locationVariations)];
-
-        let data: any = [];
-
-        // Try each variation with the location endpoint
-        for (const variation of uniqueVariations) {
-          try {
-            const response = await api.getProjectsByLocation(variation);
-            console.log(`Received data from location endpoint for "${variation}":`, response);
-
-            let responseData = response;
-            // Handle if response is an object with a data/projects array
-            if (responseData && typeof responseData === 'object' && !Array.isArray(responseData)) {
-              if (Array.isArray(responseData.data)) {
-                responseData = responseData.data;
-              } else if (Array.isArray(responseData.projects)) {
-                responseData = responseData.projects;
-              } else if (Array.isArray(responseData.results)) {
-                responseData = responseData.results;
-              }
-            }
-
-            if (Array.isArray(responseData) && responseData.length > 0) {
-              data = responseData;
-              console.log(`Found ${data.length} projects using variation "${variation}"`);
-              break; // Found projects, stop trying other variations
-            }
-          } catch (error) {
-            // Continue to next variation
-            console.log(`Variation "${variation}" failed, trying next...`);
-          }
-        }
-
-        // If no data found from location endpoint, fetch all and filter
-        if (!Array.isArray(data) || data.length === 0) {
-          console.log(`Location endpoint didn't return data, fetching all projects and filtering...`);
-          try {
-            let allProjects = await api.getProjects();
-            console.log(`Fetched all projects response:`, allProjects);
-
-            // Handle if response is an object with a data/projects array
-            if (allProjects && typeof allProjects === 'object' && !Array.isArray(allProjects)) {
-              if (Array.isArray(allProjects.data)) {
-                allProjects = allProjects.data;
-              } else if (Array.isArray(allProjects.projects)) {
-                allProjects = allProjects.projects;
-              } else if (Array.isArray(allProjects.results)) {
-                allProjects = allProjects.results;
-              }
-            }
-
-            if (Array.isArray(allProjects)) {
-              console.log(`Total projects to filter: ${allProjects.length}`);
-
-              // Log all unique locations for debugging
-              const uniqueLocations = [...new Set(allProjects.map((p: Project) => p.location).filter(Boolean))];
-              console.log(`Available locations in API:`, uniqueLocations);
-
-              // Filter projects by location (case-insensitive, partial match, try all variations)
-              const locationLower = location.toLowerCase();
-              data = allProjects.filter((project: Project) => {
-                const projectLocation = project.location?.toLowerCase() || '';
-                // Try exact match, contains, or partial match
-                return (
-                  projectLocation === locationLower ||
-                  projectLocation.includes(locationLower) ||
-                  locationLower.includes(projectLocation) ||
-                  projectLocation.replace(/\s+/g, '') === locationLower.replace(/\s+/g, '') // Remove spaces and compare
-                );
-              });
-              console.log(`Filtered ${data.length} projects for "${location}" from ${allProjects.length} total projects`);
-            } else {
-              data = [];
-            }
-          } catch (filterError) {
-            console.error(`Error filtering projects:`, filterError);
-            data = [];
-          }
-        }
-
-        if (Array.isArray(data)) {
-          const publishedProjects = data.filter((p: any) => p.published === true);
-          setProjects(publishedProjects);
-          console.log(`✅ Set ${publishedProjects.length} projects for ${location}`);
-        } else {
-          console.warn(`Data is not an array for ${location}:`, data);
-          setProjects([]);
-        }
-      } catch (error) {
-        console.error(`Error fetching projects for ${location}:`, error);
-        setProjects([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (location) {
-      fetchProjects();
+    if (!contextLoading) {
+      // Filter client-side by location (0 network requests)
+      const filtered = filterByLocation(allProjects as any, location)
+        .filter((p: any) => p.published === true || p.published === undefined);
+      setProjects(filtered as any);
+      setLoading(false);
     }
-  }, [location]);
+  }, [allProjects, contextLoading, location]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);

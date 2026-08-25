@@ -1,53 +1,62 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { LayoutDashboard } from 'lucide-react';
-import { getAccessToken, clearAuthCookies } from '@/lib/auth';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter, usePathname } from "next/navigation";
+import { LayoutDashboard } from "lucide-react";
+import { tokenStorage } from "@/lib/http/tokenStorage";
+import { signOut } from "@/lib/api/auth.api";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isModalClosing, setIsModalClosing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    const token = getAccessToken();
-    const isValid = token && token !== 'undefined' && token !== 'null' && token.trim() !== '';
-    setIsLoggedIn(!!isValid);
-    if (isValid) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.role === 'ADMIN' || payload.role === 'admin' || payload.role === 'superadmin') {
+    const checkAuth = () => {
+      const isValid = tokenStorage.isValid();
+      setIsLoggedIn(isValid);
+      if (isValid) {
+        const payload = tokenStorage.getUserPayload();
+        if (
+          payload &&
+          (payload.role === "admin" || payload.role === "superadmin")
+        ) {
           setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
         }
-      } catch (e) {
-        console.error('Failed to decode token for role check', e);
+      } else {
+        setIsAdmin(false);
       }
-    }
-    setHasMounted(true);
-  }, []);
+      setHasMounted(true);
+    };
 
-  const handleLogout = () => {
-    clearAuthCookies();
-    setIsLoggedIn(false);
-    router.push('/login');
-    router.refresh();
-  };
+    checkAuth();
 
-  const handleProtectedNav = (e: React.MouseEvent, href: string) => {
-    if (!hasMounted) return;
-    const token = getAccessToken();
-    const isValid = token && token !== 'undefined' && token !== 'null' && token.trim() !== '';
-    if (!isValid) {
-      e.preventDefault();
-      setMobileMenuOpen(false);
-      setShowAuthModal(true);
+    window.addEventListener("auth-change", checkAuth);
+    window.addEventListener("storage", checkAuth);
+    return () => {
+      window.removeEventListener("auth-change", checkAuth);
+      window.removeEventListener("storage", checkAuth);
+    };
+  }, [pathname]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } catch {
+      // Ignore errors on signout
+    } finally {
+      tokenStorage.clear();
+      setIsLoggedIn(false);
+      setIsAdmin(false);
+      router.push("/");
+      router.refresh();
     }
   };
 
@@ -66,58 +75,113 @@ export default function Header() {
                   className="h-10 w-10 md:h-12 md:w-12 object-contain"
                   priority
                 />
-                <span className="text-white font-bold text-base md:text-lg tracking-wide">Orientation</span>
+                <span className="text-white font-bold text-base md:text-lg tracking-wide">
+                  Orientation
+                </span>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center justify-center gap-3 lg:gap-6 flex-1">
-              <Link href="/" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
+              <Link
+                href="/"
+                className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap"
+              >
                 Home
               </Link>
-              <Link href="/areas" onClick={(e) => handleProtectedNav(e, '/areas')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
+              <Link
+                href="/areas"
+                className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap"
+              >
                 Area
               </Link>
-              <Link href="/news" onClick={(e) => handleProtectedNav(e, '/news')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
+              <Link
+                href="/news"
+                className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap"
+              >
                 News
               </Link>
-              <Link href="/courses" onClick={(e) => handleProtectedNav(e, '/courses')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
+              <Link
+                href="/courses"
+                className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap"
+              >
                 Courses
               </Link>
-              <Link href="/tv" onClick={(e) => handleProtectedNav(e, '/tv')} className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
+              <Link
+                href="/tv"
+                className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap"
+              >
                 TV
               </Link>
-              <Link href="/about" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
+              <Link
+                href="/about"
+                className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap"
+              >
                 About Us
               </Link>
-              <Link href="/checkout" className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap">
+              <Link
+                href="/checkout"
+                className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap"
+              >
                 Pricing
               </Link>
             </nav>
 
             {/* Right section (Search + Bookmark + Auth + Mobile Menu) */}
             <div className="flex items-center justify-end flex-1 gap-1 md:gap-2">
-              <button onClick={(e) => { handleProtectedNav(e as any, '/saved'); if (isLoggedIn) router.push('/saved'); }} className="text-white hover:text-red-600 transition-colors p-2">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              <Link
+                href="/saved"
+                className="text-white hover:text-red-600 transition-colors p-2"
+                title="Saved Projects"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                  />
                 </svg>
-              </button>
-              <button onClick={(e) => { handleProtectedNav(e as any, '/search'); if (isLoggedIn) router.push('/search'); }} className="text-white hover:text-red-600 transition-colors p-2 md:mr-2">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </Link>
+              <Link
+                href="/search"
+                className="text-white hover:text-red-600 transition-colors p-2 md:mr-2"
+                title="Search"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
-              </button>
+              </Link>
 
               {/* Admin Dashboard Button */}
               {hasMounted && isAdmin && (
-                <Link href="/dashboard" className="text-white hover:text-red-600 transition-colors p-2 md:mr-2 flex items-center justify-center bg-zinc-800/50 hover:bg-zinc-800 rounded-full" title="Admin Dashboard">
+                <Link
+                  href="/dashboard"
+                  className="text-white hover:text-red-600 transition-colors p-2 md:mr-2 flex items-center justify-center bg-zinc-800/50 hover:bg-zinc-800 rounded-full"
+                  title="Admin Dashboard"
+                >
                   <LayoutDashboard className="w-5 h-5 md:w-5 md:h-5" />
                 </Link>
               )}
 
               {/* Auth Buttons */}
-              {hasMounted && (
-                isLoggedIn ? (
+              {hasMounted &&
+                (isLoggedIn ? (
                   <button
                     onClick={handleLogout}
                     className="hidden lg:inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-zinc-800 hover:bg-red-600 border border-transparent rounded-full transition-colors"
@@ -132,19 +196,33 @@ export default function Header() {
                   >
                     Log in
                   </Link>
-                )
-              )}
+                ))}
 
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="lg:hidden w-10 h-10 flex items-center justify-center text-white"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
                   {mobileMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
                   )}
                 </svg>
               </button>
@@ -154,25 +232,53 @@ export default function Header() {
           {/* Mobile Menu */}
           {mobileMenuOpen && (
             <nav className="lg:hidden mt-4 pb-4 space-y-3">
-              <Link href="/" className="block text-white hover:text-red-600 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                href="/"
+                className="block text-white hover:text-red-600 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Home
               </Link>
-              <Link href="/areas" className="block text-white hover:text-red-600 transition-colors py-2" onClick={(e) => { handleProtectedNav(e, '/areas'); setMobileMenuOpen(false); }}>
+              <Link
+                href="/areas"
+                className="block text-white hover:text-red-600 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Area
               </Link>
-              <Link href="/news" className="block text-white hover:text-red-600 transition-colors py-2" onClick={(e) => { handleProtectedNav(e, '/news'); setMobileMenuOpen(false); }}>
+              <Link
+                href="/news"
+                className="block text-white hover:text-red-600 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 News
               </Link>
-              <Link href="/courses" className="block text-white hover:text-red-600 transition-colors py-2" onClick={(e) => { handleProtectedNav(e, '/courses'); setMobileMenuOpen(false); }}>
+              <Link
+                href="/courses"
+                className="block text-white hover:text-red-600 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Courses
               </Link>
-              <Link href="/tv" className="block text-white hover:text-red-600 transition-colors py-2" onClick={(e) => { handleProtectedNav(e, '/tv'); setMobileMenuOpen(false); }}>
+              <Link
+                href="/tv"
+                className="block text-white hover:text-red-600 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 TV
               </Link>
-              <Link href="/about" className="block text-white hover:text-red-600 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                href="/about"
+                className="block text-white hover:text-red-600 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 About Us
               </Link>
-              <Link href="/checkout" className="block text-white hover:text-red-600 transition-colors py-2" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                href="/checkout"
+                className="block text-white hover:text-red-600 transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
                 Pricing
               </Link>
               {/* Mobile Auth Buttons */}
@@ -203,74 +309,6 @@ export default function Header() {
           )}
         </div>
       </header>
-
-      {/* Auth Modal */}
-      {showAuthModal && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
-          onClick={() => {
-            setIsModalClosing(true);
-            setTimeout(() => { setShowAuthModal(false); setIsModalClosing(false); }, 300);
-          }}
-          style={{ animation: isModalClosing ? 'authFadeOut 0.3s ease-in forwards' : 'authFadeIn 0.3s ease-out' }}
-        >
-          <div
-            className="bg-[#111] border border-zinc-800 p-6 md:p-8 rounded-[2rem] max-w-sm w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] relative text-center"
-            onClick={(e) => e.stopPropagation()}
-            style={{ animation: isModalClosing ? 'authZoomOut 0.3s ease-in forwards' : 'authZoomIn 0.3s ease-out' }}
-          >
-            <div className="w-16 h-16 bg-red-600/10 rounded-full flex items-center justify-center mx-auto mb-5 shadow-[0_0_20px_rgba(255,0,0,0.1)]">
-              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">Login Required</h3>
-            <p className="text-gray-400 text-sm mb-8 leading-relaxed">
-              You need to log in to your account first in order to interact and access all project features.
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  setIsModalClosing(true);
-                  setTimeout(() => { setShowAuthModal(false); setIsModalClosing(false); router.push('/login'); }, 300);
-                }}
-                className="w-full h-14 bg-[#ff0000] shadow-[0_0_20px_rgba(255,0,0,0.2)] text-white font-bold rounded-full hover:bg-red-700 transition-colors"
-              >
-                Okay, Log in
-              </button>
-              <button
-                onClick={() => {
-                  setIsModalClosing(true);
-                  setTimeout(() => { setShowAuthModal(false); setIsModalClosing(false); }, 300);
-                }}
-                className="w-full h-14 bg-[#1a1a1a] border border-zinc-800 text-gray-300 font-medium rounded-full hover:text-white hover:bg-zinc-800 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Inline keyframe animations */}
-      <style jsx global>{`
-        @keyframes authFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes authFadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; }
-        }
-        @keyframes authZoomIn {
-          from { opacity: 0; transform: scale(0.9); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes authZoomOut {
-          from { opacity: 1; transform: scale(1); }
-          to { opacity: 0; transform: scale(0.9); }
-        }
-      `}</style>
     </>
   );
 }

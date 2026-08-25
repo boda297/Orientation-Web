@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { Suspense, useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, EyeOff, Eye, Loader2 } from 'lucide-react';
 import AuthLogo from '@/components/AuthLogo';
-import { authApi } from '@/lib/auth';
+import { resetPassword } from '@/lib/api/auth.api';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    
+    // Retrieve email from searchParams or sessionStorage fallback
+    const email = searchParams.get('email') || (typeof window !== 'undefined' ? sessionStorage.getItem('resetEmail') : '') || '';
 
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,20 +20,21 @@ export default function ResetPasswordPage() {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [resetToken, setResetToken] = useState<string | null>(null);
 
     useEffect(() => {
-        const token = sessionStorage.getItem('resetToken');
-        if (!token) {
+        if (!email) {
             router.replace('/login');
-        } else {
-            setResetToken(token);
         }
-    }, [router]);
+    }, [email, router]);
 
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newPassword || !confirmPassword) return;
+
+        if (newPassword.length < 8) {
+            setError('Password must be at least 8 characters long.');
+            return;
+        }
 
         if (newPassword !== confirmPassword) {
             setError('Passwords do not match.');
@@ -40,10 +45,13 @@ export default function ResetPasswordPage() {
         setError('');
 
         try {
-            if (!resetToken) throw new Error('Action not authorized.');
+            // Send payload strictly matching backend NestJS ResetPasswordDto schema: { email, newPassword }
+            await resetPassword({
+                email: email.toLowerCase(),
+                newPassword: newPassword,
+            });
 
-            await authApi.resetPassword({ newPassword, confirmPassword }, resetToken);
-            sessionStorage.removeItem('resetToken');
+            sessionStorage.removeItem('resetEmail');
 
             // Successfully reset, go to login
             router.push('/login');
@@ -116,7 +124,7 @@ export default function ResetPasswordPage() {
 
                 <button
                     type="submit"
-                    disabled={loading || !resetToken}
+                    disabled={loading}
                     className="mt-6 w-full h-14 bg-zinc-800 hover:bg-zinc-700 text-white rounded-[1.75rem] font-bold flex items-center justify-center transition-colors disabled:opacity-50"
                 >
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Reset Password'}
@@ -133,5 +141,17 @@ export default function ResetPasswordPage() {
                 </div>
             </form>
         </div>
+    );
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex flex-col animate-in fade-in duration-500 justify-center items-center min-h-[400px]">
+                <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+            </div>
+        }>
+            <ResetPasswordContent />
+        </Suspense>
     );
 }

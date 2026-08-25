@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Users, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Users, Edit, Trash2, Plus, Loader2, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { usersApi, type User } from '@/lib/dashboardApi';
 
 export default function UsersList() {
     const [users, setUsers] = useState<User[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -27,20 +28,52 @@ export default function UsersList() {
         }
     };
 
+    const filteredUsers = useMemo(() => {
+        const q = searchQuery.toLowerCase().trim();
+        if (!q) return users;
+        return users.filter((u) => {
+            const username = (u.username || (u as any).name || '').toLowerCase();
+            const email = (u.email || '').toLowerCase();
+            const role = (u.role || '').toLowerCase();
+            return username.includes(q) || email.includes(q) || role.includes(q);
+        });
+    }, [users, searchQuery]);
+
     return (
         <div className="animate-in fade-in duration-500 max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                     <Users className="w-8 h-8 text-red-500" />
                     Registered Users
                 </h1>
                 <Link
                     href="/dashboard/users/create"
-                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-red-600/20"
+                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-red-600/20 w-fit"
                 >
                     <Plus className="w-5 h-5" />
                     Create User
                 </Link>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative flex items-center bg-[#111] border border-zinc-800 focus-within:border-red-500 rounded-xl px-4 py-2.5 shadow-lg transition-colors">
+                <Search className="w-5 h-5 text-gray-400 flex-shrink-0 mr-3" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by name, email, or role..."
+                    className="w-full bg-transparent text-white placeholder-zinc-500 outline-none text-sm"
+                />
+                {searchQuery && (
+                    <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-gray-400 hover:text-white p-1 ml-2 transition-colors"
+                        title="Clear search"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
             {error && (
@@ -70,14 +103,14 @@ export default function UsersList() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : users.length === 0 ? (
+                            ) : filteredUsers.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                                        No users found.
+                                        {searchQuery ? `No users matching "${searchQuery}".` : 'No users found.'}
                                     </td>
                                 </tr>
                             ) : (
-                                users.map((u, idx) => (
+                                filteredUsers.map((u, idx) => (
                                     <tr key={u._id || idx} className="hover:bg-zinc-800/50 transition-colors">
                                         <td className="px-6 py-4 font-medium">{u.username}</td>
                                         <td className="px-6 py-4 text-gray-400">{u.email}</td>

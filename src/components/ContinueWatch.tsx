@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { api, getFileUrl } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { watchHistoryApi } from '@/lib/api/watchHistory.api';
+import { getFileUrl } from '@/lib/http/url';
+import { tokenStorage } from '@/lib/http/tokenStorage';
 
 export interface WatchHistoryEntry {
   episodeId: string;
@@ -11,28 +12,64 @@ export interface WatchHistoryEntry {
   projectTitle: string;
   episodeTitle: string;
   thumbnail: string;
+  episodeUrl?: string; // Pre-cached for instant direct playback
   currentTime: number;
   duration: number;
   timestamp: number; // Date.now()
 }
 
-// Helper to save watch progress
-export function saveWatchProgress(entry: WatchHistoryEntry) {
+/**
+ * Saves watch progress.
+ * - Always updates `localStorage` instantly (0 network requests).
+ * - Only sends an HTTP request to the backend database when `syncToBackend === true` (on pause, end, or video close).
+ */
+export function saveWatchProgress(entry: WatchHistoryEntry, syncToBackend: boolean = false) {
   if (typeof window === 'undefined') return;
   try {
     const history: WatchHistoryEntry[] = JSON.parse(localStorage.getItem('watchHistory') || '[]');
     // Update existing or add new
     const existingIndex = history.findIndex(h => h.episodeId === entry.episodeId);
     if (existingIndex >= 0) {
-      history[existingIndex] = { ...entry, timestamp: Date.now() };
+      history[existingIndex] = { ...history[existingIndex], ...entry, timestamp: Date.now() };
     } else {
       history.unshift({ ...entry, timestamp: Date.now() });
     }
     // Keep only last 20 items
     const trimmed = history.slice(0, 20);
     localStorage.setItem('watchHistory', JSON.stringify(trimmed));
+
+    // Send HTTP request to backend ONLY when explicitly requested (on pause or close)
+    if (syncToBackend && tokenStorage.isValid() && entry.episodeId) {
+      watchHistoryApi.updateProgress({
+        projectId: entry.projectId,
+        projectTitle: entry.projectTitle,
+        contentId: entry.episodeId,
+        contentTitle: entry.episodeTitle || 'Episode',
+        contentThumbnail: entry.thumbnail,
+        episodeUrl: entry.episodeUrl,
+        currentTime: Math.floor(entry.currentTime),
+        duration: Math.max(1, Math.floor(entry.duration)),
+        contentType: 'episode',
+      }).catch(() => {
+        // Silently catch background sync failures
+      });
+    }
   } catch (e) {
     console.warn('Failed to save watch progress:', e);
+  }
+}
+
+/**
+ * Removes a specific episode from watch history in localStorage.
+ */
+export function removeWatchProgress(episodeId: string) {
+  if (typeof window === 'undefined' || !episodeId) return;
+  try {
+    const history: WatchHistoryEntry[] = JSON.parse(localStorage.getItem('watchHistory') || '[]');
+    const filtered = history.filter(h => h.episodeId !== episodeId);
+    localStorage.setItem('watchHistory', JSON.stringify(filtered));
+  } catch (e) {
+    console.warn('Failed to remove watch progress from localStorage:', e);
   }
 }
 
@@ -41,7 +78,7 @@ function isValidMongoId(id: string): boolean {
   return /^[a-fA-F0-9]{24}$/.test(id);
 }
 
-// Helper to get watch history
+// Helper to get watch history from localStorage (0 network requests)
 export function getWatchHistory(): WatchHistoryEntry[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -76,89 +113,92 @@ export function clearWatchHistory() {
 export default function ContinueWatch() {
   const [items, setItems] = useState<WatchHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
     const fetchHistory = async () => {
+      setHasMounted(true);
+      const authenticated = tokenStorage.isValid();
+      setIsLoggedIn(authenticated);
+
+      // Completely invisible for guest users
+      if (!authenticated) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
+
+      // 1. Local-First: Check localStorage immediately (0 network requests)
+      const localHistory = getWatchHistory();
+      if (localHistory.length > 0) {
+        setItems(localHistory);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Only if local storage is empty, fetch once from backend to seed local cache (e.g. new device/browser)
       try {
         setLoading(true);
-
-        // First try API if logged in
-        const token = getAccessToken();
-        const tokenValid = token && token !== 'undefined' && token !== 'null' && token.trim() !== '';
-
-        if (tokenValid) {
-          try {
-            const data = await api.getContinueWatching(10);
-            if (data && data.items && data.items.length > 0) {
-              const apiItems: WatchHistoryEntry[] = data.items
-                .map((item: any) => {
-                  // Extract project ID - try multiple paths from the API response
-                  let projectId = '';
-                  if (item.projectId) {
-                    projectId = typeof item.projectId === 'object' ? item.projectId._id || item.projectId.id || '' : item.projectId;
-                  } else if (item.project) {
-                    projectId = typeof item.project === 'object' ? item.project._id || item.project.id || '' : item.project;
-                  } else if (typeof item.contentId === 'object' && item.contentId) {
-                    projectId = item.contentId.project || item.contentId._id || item.contentId.id || '';
-                  } else if (typeof item.contentId === 'string') {
-                    projectId = item.contentId;
-                  }
-
-                  return {
-                    episodeId: item._id || '',
-                    projectId: String(projectId),
-                    projectTitle: item.projectTitle || '',
-                    episodeTitle: item.contentTitle || 'Untitled',
-                    thumbnail: item.contentThumbnail || '',
-                    currentTime: item.currentTime || 0,
-                    duration: item.duration || 1,
-                    timestamp: item.updatedAt ? new Date(item.updatedAt).getTime() : Date.now(),
-                  };
-                })
-                .filter((item: WatchHistoryEntry) => item.projectId && isValidMongoId(item.projectId));
-
-              if (apiItems.length > 0) {
-                setItems(apiItems);
-                setLoading(false);
-                return;
+        const data = await watchHistoryApi.getContinueWatching(10);
+        if (data && data.items && data.items.length > 0) {
+          const apiItems: WatchHistoryEntry[] = data.items
+            .map((item: any) => {
+              // Extract project ID - try multiple paths from the API response
+              let projectId = '';
+              if (item.projectId) {
+                projectId = typeof item.projectId === 'object' ? item.projectId._id || item.projectId.id || '' : item.projectId;
+              } else if (item.project) {
+                projectId = typeof item.project === 'object' ? item.project._id || item.project.id || '' : item.project;
+              } else if (typeof item.contentId === 'object' && item.contentId) {
+                projectId = item.contentId.project || item.contentId._id || item.contentId.id || '';
+              } else if (typeof item.contentId === 'string') {
+                projectId = item.contentId;
               }
-            }
-          } catch (e) {
-            console.warn('API continue watching failed, falling back to local:', e);
+
+              return {
+                episodeId: item._id || '',
+                projectId: String(projectId),
+                projectTitle: item.projectTitle || '',
+                episodeTitle: item.contentTitle || 'Untitled',
+                thumbnail: item.contentThumbnail || '',
+                currentTime: item.currentTime || 0,
+                duration: item.duration || 1,
+                timestamp: item.updatedAt ? new Date(item.updatedAt).getTime() : Date.now(),
+              };
+            })
+            .filter((item: WatchHistoryEntry) => item.projectId && isValidMongoId(item.projectId));
+
+          if (apiItems.length > 0) {
+            setItems(apiItems);
+            localStorage.setItem('watchHistory', JSON.stringify(apiItems));
+            setLoading(false);
+            return;
           }
         }
-
-        // Fallback to localStorage
-        const localHistory = getWatchHistory();
-        setItems(localHistory);
       } catch (error) {
-        console.warn('Failed to fetch continue watching:', error);
-        setItems([]);
+        console.warn('Failed to fetch continue watching from server:', error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchHistory();
+
+    window.addEventListener('auth-change', fetchHistory);
+    window.addEventListener('storage', fetchHistory);
+    return () => {
+      window.removeEventListener('auth-change', fetchHistory);
+      window.removeEventListener('storage', fetchHistory);
+    };
   }, []);
 
+  if (!hasMounted || !isLoggedIn) {
+    return null; // Don't show anything to guest users
+  }
+
   if (loading) {
-    return (
-      <section className="py-4 md:py-6 bg-black">
-        <div className="max-w-[1600px] mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-6 md:mb-8">Continue Watching</h2>
-          <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 scrollbar-hide">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex-shrink-0 w-48 sm:w-56 md:w-64">
-                <div className="aspect-video bg-gray-800 rounded-lg mb-3 animate-pulse"></div>
-                <div className="h-4 bg-gray-800 rounded w-3/4 mb-2 animate-pulse"></div>
-                <div className="h-3 bg-gray-800 rounded w-1/2 animate-pulse"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
+    return null; // Local-first loading is instant, avoid layout shifts
   }
 
   if (items.length === 0) {

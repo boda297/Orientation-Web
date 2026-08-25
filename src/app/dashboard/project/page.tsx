@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { PlusSquare, Edit, Trash2, Plus, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { PlusSquare, Edit, Trash2, Plus, Loader2, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { projectsApi, developersApi, type Project, type Developer } from '@/lib/dashboardApi';
 import { formatDeveloperName, formatLocationName } from '@/lib/locationUtils';
@@ -10,6 +10,7 @@ export default function ProjectsList() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [devList, setDevList] = useState<Developer[]>([]);
     const [devMap, setDevMap] = useState<Record<string, string>>({});
+    const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -89,20 +90,53 @@ export default function ProjectsList() {
         return 'bg-red-500/15 text-red-400 border-red-500/30';
     };
 
+    const filteredProjects = useMemo(() => {
+        const q = searchQuery.toLowerCase().trim();
+        if (!q) return projects;
+        return projects.filter((p, idx) => {
+            const title = (p.title || '').toLowerCase();
+            const devName = getDeveloperName(p, idx).toLowerCase();
+            const loc = (p.location || '').toLowerCase();
+            const status = getStatusText(p, idx).toLowerCase();
+            return title.includes(q) || devName.includes(q) || loc.includes(q) || status.includes(q);
+        });
+    }, [projects, searchQuery, devMap, devList]);
+
     return (
         <div className="animate-in fade-in duration-500 max-w-6xl mx-auto space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                     <PlusSquare className="w-8 h-8 text-red-500" />
                     Registered Projects
                 </h1>
                 <Link
                     href="/dashboard/project/create"
-                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-red-600/20"
+                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-colors shadow-lg shadow-red-600/20 w-fit"
                 >
                     <Plus className="w-5 h-5" />
                     Create Project
                 </Link>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative flex items-center bg-[#111] border border-zinc-800 focus-within:border-red-500 rounded-xl px-4 py-2.5 shadow-lg transition-colors">
+                <Search className="w-5 h-5 text-gray-400 flex-shrink-0 mr-3" />
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by project title, developer, location, or status..."
+                    className="w-full bg-transparent text-white placeholder-zinc-500 outline-none text-sm"
+                />
+                {searchQuery && (
+                    <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-gray-400 hover:text-white p-1 ml-2 transition-colors"
+                        title="Clear search"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
             {error && (
@@ -133,14 +167,14 @@ export default function ProjectsList() {
                                         </div>
                                     </td>
                                 </tr>
-                            ) : projects.length === 0 ? (
+                            ) : filteredProjects.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                                        No projects found.
+                                        {searchQuery ? `No projects matching "${searchQuery}".` : 'No projects found.'}
                                     </td>
                                 </tr>
                             ) : (
-                                projects.map((p, idx) => {
+                                filteredProjects.map((p, idx) => {
                                     const devName = getDeveloperName(p, idx);
                                     const statusVal = getStatusText(p, idx);
                                     const badgeCls = getStatusBadgeCls(statusVal);

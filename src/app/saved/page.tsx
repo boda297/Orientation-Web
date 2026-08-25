@@ -6,17 +6,11 @@ import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ChatWidget from '@/components/ChatWidget';
-import { api, getFileUrl } from '@/lib/api';
-
-interface Project {
-  _id: string;
-  title: string;
-  location?: string;
-  projectThumbnailUrl?: string;
-  developer?: {
-    name: string;
-  };
-}
+import { projectsApi } from '@/lib/api/projects.api';
+import { usersApi } from '@/lib/api/users.api';
+import { getFileUrl } from '@/lib/http/url';
+import { tokenStorage } from '@/lib/http/tokenStorage';
+import type { Project } from '@/types/projects.types';
 
 export default function SavedProjectsPage() {
   const [savedProjects, setSavedProjects] = useState<Project[]>([]);
@@ -26,6 +20,21 @@ export default function SavedProjectsPage() {
     const fetchSavedProjects = async () => {
       try {
         setLoading(true);
+
+        // First check backend saved projects if user is logged in
+        if (tokenStorage.isValid()) {
+          try {
+            const res = await usersApi.getSavedProjects();
+            if (res && res.savedProjects && res.savedProjects.length > 0) {
+              setSavedProjects(res.savedProjects as any);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // Fallback to local
+          }
+        }
+
         // Get saved project IDs from localStorage
         const savedIds = JSON.parse(localStorage.getItem('savedProjects') || '[]');
         
@@ -37,7 +46,7 @@ export default function SavedProjectsPage() {
 
         // Fetch all saved projects
         const projectsPromises = savedIds.map((id: string) => 
-          api.getProject(id).catch(() => null)
+          projectsApi.get(id).catch(() => null)
         );
         
         const projects = await Promise.all(projectsPromises);
@@ -56,6 +65,9 @@ export default function SavedProjectsPage() {
   }, []);
 
   const removeFromSaved = (projectId: string) => {
+    if (tokenStorage.isValid()) {
+      projectsApi.unsave(projectId).catch(() => {});
+    }
     const savedIds = JSON.parse(localStorage.getItem('savedProjects') || '[]');
     const updatedIds = savedIds.filter((id: string) => id !== projectId);
     localStorage.setItem('savedProjects', JSON.stringify(updatedIds));
@@ -120,7 +132,7 @@ export default function SavedProjectsPage() {
                           {project.location && (
                             <p className="text-gray-300 text-sm mb-2">{project.location}</p>
                           )}
-                          {project.developer?.name && (
+                          {typeof project.developer === 'object' && project.developer?.name && (
                             <p className="text-gray-400 text-xs">{project.developer.name}</p>
                           )}
                         </div>

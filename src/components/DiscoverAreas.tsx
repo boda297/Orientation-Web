@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
-import { developersApi } from '@/lib/dashboardApi';
+import { useHomepageData } from '@/lib/hooks/useHomepageData';
 import { formatLocationName, PREDEFINED_AREAS } from '@/lib/locationUtils';
 
 interface Area {
@@ -12,72 +11,31 @@ interface Area {
 }
 
 export default function DiscoverAreas() {
-  const [areas, setAreas] = useState<Area[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { allProjects, loading } = useHomepageData();
 
-  useEffect(() => {
-    const fetchAreas = async () => {
-      try {
-        setLoading(true);
+  const areas = useMemo<Area[]>(() => {
+    const locationMap = new Map<string, number>();
 
-        const [allProjects, allDevelopers] = await Promise.all([
-          api.getProjects().catch(() => []),
-          developersApi.list().catch(() => []),
-        ]);
+    // Always include predefined areas
+    PREDEFINED_AREAS.forEach((area) => {
+      locationMap.set(area, 0);
+    });
 
-        let projectsData: any[] = [];
-        if (Array.isArray(allProjects)) {
-          projectsData = allProjects;
-        } else if (allProjects && typeof allProjects === 'object') {
-          projectsData = (allProjects as any).data || (allProjects as any).projects || (allProjects as any).results || [];
+    // Add and count locations from allProjects
+    allProjects.forEach((p) => {
+      if (p && p.location) {
+        const formatted = formatLocationName(p.location);
+        if (formatted) {
+          locationMap.set(formatted, (locationMap.get(formatted) || 0) + 1);
         }
-
-        let developersData: any[] = Array.isArray(allDevelopers) ? allDevelopers : [];
-
-        const locationMap = new Map<string, number>();
-
-        // Always include predefined areas
-        PREDEFINED_AREAS.forEach((area) => {
-          locationMap.set(area, 0);
-        });
-
-        // Add from projects
-        projectsData.forEach((p) => {
-          if (p && p.location) {
-            const formatted = formatLocationName(p.location);
-            if (formatted) {
-              locationMap.set(formatted, (locationMap.get(formatted) || 0) + 1);
-            }
-          }
-        });
-
-        // Add from developers
-        developersData.forEach((d) => {
-          if (d && d.location) {
-            const formatted = formatLocationName(d.location);
-            if (formatted && !locationMap.has(formatted)) {
-              locationMap.set(formatted, 0);
-            }
-          }
-        });
-
-        const list: Area[] = Array.from(locationMap.entries()).map(([name, count]) => ({
-          name,
-          count,
-        }));
-
-        setAreas(list);
-      } catch (error) {
-        console.error('Error fetching discover areas:', error);
-        // Fallback to predefined areas
-        setAreas(PREDEFINED_AREAS.map((name) => ({ name, count: 0 })));
-      } finally {
-        setLoading(false);
       }
-    };
+    });
 
-    fetchAreas();
-  }, []);
+    return Array.from(locationMap.entries()).map(([name, count]) => ({
+      name,
+      count,
+    }));
+  }, [allProjects]);
 
   return (
     <section className="py-6 bg-black w-full overflow-hidden">

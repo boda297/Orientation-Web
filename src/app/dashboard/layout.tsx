@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, PlusSquare, LayoutDashboard, ChevronLeft, Users } from 'lucide-react';
-import { getAccessToken } from '@/lib/auth';
+import { tokenStorage } from '@/lib/http/tokenStorage';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -14,21 +14,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     useEffect(() => {
         const checkAdmin = () => {
-            const token = getAccessToken();
-            if (!token || token === 'undefined' || token === 'null' || token.trim() === '') {
+            if (!tokenStorage.isValid()) {
                 router.push('/');
                 return;
             }
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                if (payload.role === 'ADMIN' || payload.role === 'admin' || payload.role === 'superadmin') {
-                    setIsAdmin(true);
-                    setUserRole(payload.role.toLowerCase());
-                } else {
-                    router.push('/');
-                }
-            } catch (e) {
-                console.error('Token decode error', e);
+            const payload = tokenStorage.getUserPayload();
+            if (payload && (payload.role === 'ADMIN' || payload.role === 'admin' || payload.role === 'superadmin')) {
+                setIsAdmin(true);
+                setUserRole(payload.role.toLowerCase());
+            } else {
                 router.push('/');
             }
         };

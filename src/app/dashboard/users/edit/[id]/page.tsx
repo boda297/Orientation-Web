@@ -5,7 +5,7 @@ import { ChevronLeft, Loader2, CheckCircle2, AlertCircle, UserCog, ShieldAlert }
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usersApi, type User, type UpdateUserPayload } from '@/lib/dashboardApi';
-import { getAccessToken } from '@/lib/auth';
+import { tokenStorage } from '@/lib/http/tokenStorage';
 
 const inputCls =
     'w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors';
@@ -15,7 +15,7 @@ const selectCls =
 /** Decodes the JWT and returns the role string, or null on failure */
 function getRoleFromToken(): string | null {
     try {
-        const token = getAccessToken();
+        const token = tokenStorage.getAccessToken();
         if (!token) return null;
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload.role ?? null;
@@ -86,7 +86,11 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
             if (password) payload.password = password;
 
             const updated = await usersApi.update(id, payload);
-            setUser(updated);
+            if (updated && 'user' in updated && updated.user) {
+                setUser(updated.user);
+            } else if (updated) {
+                setUser(updated as any);
+            }
             setSuccess('User updated successfully!');
             setPassword('');
             window.scrollTo({ top: 0, behavior: 'smooth' });

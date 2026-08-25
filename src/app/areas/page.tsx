@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MapPin, ArrowUpRight, Building2 } from 'lucide-react';
+import { MapPin, ArrowUpRight } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ChatWidget from '@/components/ChatWidget';
-import { api } from '@/lib/api';
-import { developersApi } from '@/lib/dashboardApi';
+import { projectsApi } from '@/lib/api/projects.api';
 import { formatLocationName, PREDEFINED_AREAS } from '@/lib/locationUtils';
 
 interface Area {
@@ -23,12 +22,10 @@ export default function AreasPage() {
     const fetchAreas = async () => {
       try {
         setLoading(true);
-        console.log('Fetching all areas...');
         
         // Fetch projects and developers to extract unique locations
-        const [allProjects, allDevelopers] = await Promise.all([
-          api.getProjects().catch(() => []),
-          developersApi.list().catch(() => []),
+        const [allProjects] = await Promise.all([
+          projectsApi.list().catch(() => []),
         ]);
         
         let projectsData: any[] = [];
@@ -37,8 +34,6 @@ export default function AreasPage() {
         } else if (allProjects && typeof allProjects === 'object') {
           projectsData = (allProjects as any).data || (allProjects as any).projects || (allProjects as any).results || [];
         }
-
-        let developersData: any[] = Array.isArray(allDevelopers) ? allDevelopers : [];
         
         const locationMap = new Map<string, number>();
 
@@ -57,23 +52,12 @@ export default function AreasPage() {
           }
         });
 
-        // Process developers if location is specified
-        developersData.forEach((dev: any) => {
-          if (dev && dev.location) {
-            const formattedLoc = formatLocationName(dev.location);
-            if (formattedLoc && !locationMap.has(formattedLoc)) {
-              locationMap.set(formattedLoc, 0);
-            }
-          }
-        });
-
         // Convert to array and sort
         const areasList: Area[] = Array.from(locationMap.entries())
           .map(([name, count]) => ({ name, count }))
           .sort((a, b) => a.name.localeCompare(b.name));
         
         setAreas(areasList);
-        console.log(`Set ${areasList.length} areas`);
       } catch (error) {
         console.error('Error fetching areas:', error);
         setAreas([]);

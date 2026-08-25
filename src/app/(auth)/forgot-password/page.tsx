@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mail, Loader2 } from 'lucide-react';
 import AuthLogo from '@/components/AuthLogo';
-import { authApi } from '@/lib/auth';
+import { forgotPassword } from '@/lib/api/auth.api';
 
 export default function ForgotPasswordPage() {
     const router = useRouter();
@@ -12,15 +12,17 @@ export default function ForgotPasswordPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // handle send code event for forgot password (forgot password OTP)
     const handleSendCode = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email) return;
 
         setLoading(true);
         setError('');
-
+        // handle forgot password event
         try {
-            await authApi.forgotPassword({ email: email.toLowerCase() });
+            await forgotPassword({ email: email.toLowerCase() });
+            // redirect to email verification page with email and purpose as query params
             router.push(`/verify?email=${encodeURIComponent(email.toLowerCase())}&purpose=reset`);
         } catch (err: any) {
             setError(err.message || 'Failed to send reset code.');

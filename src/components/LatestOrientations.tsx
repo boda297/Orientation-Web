@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { api, getFileUrl } from '@/lib/api';
+import { useHomepageData } from '@/lib/hooks/useHomepageData';
+import { getFileUrl } from '@/lib/http/url';
 
 interface LatestOrientation {
   _id: string;
@@ -18,36 +19,20 @@ export default function LatestOrientations() {
   const [orientations, setOrientations] = useState<LatestOrientation[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Read from shared context — no individual API call needed
+  const { allProjects, loading: contextLoading } = useHomepageData();
+
   useEffect(() => {
-    const fetchOrientations = async () => {
-      try {
-        // Fetch latest projects from the new endpoint
-        const projects = await api.getLatestProjects(10);
-
-        let projectsData = projects;
-        if (projects && typeof projects === 'object' && !Array.isArray(projects)) {
-          if (Array.isArray(projects.data)) {
-            projectsData = projects.data;
-          } else if (Array.isArray(projects.projects)) {
-            projectsData = projects.projects;
-          } else if (Array.isArray(projects.results)) {
-            projectsData = projects.results;
-          }
-        }
-
-        if (Array.isArray(projectsData)) {
-          const publishedProjects = projectsData.filter((p: any) => p.published === true);
-          setOrientations(publishedProjects);
-        }
-      } catch (error) {
-        console.error('Error fetching latest orientations:', error);
-        // Keep empty array on error
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrientations();
-  }, []);
+    if (!contextLoading) {
+      // Filter published projects from the shared allProjects list (0 network requests)
+      const published = allProjects
+        .filter((p: any) => p.published === true || p.published === undefined)
+        .filter((p: any) => p.status !== 'PLANNING') // exclude upcoming
+        .slice(0, 10);
+      setOrientations(published as any);
+      setLoading(false);
+    }
+  }, [allProjects, contextLoading]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);

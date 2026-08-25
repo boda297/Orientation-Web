@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { api, getFileUrl } from '@/lib/api';
+import { useHomepageData } from '@/lib/hooks/useHomepageData';
+import { getFileUrl } from '@/lib/http/url';
 
 interface Project {
   _id: string;
@@ -19,121 +20,17 @@ export default function UpcomingProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Read from shared context — eliminates the 3-step fallback chain (0 network requests)
+  const { upcomingProjects, loading: contextLoading } = useHomepageData();
+
   useEffect(() => {
-    const fetchUpcomingProjects = async () => {
-      try {
-        setLoading(true);
-        console.log('Fetching upcoming projects...');
-
-        // API uses UPPERCASE enums (e.g. PLANNING, CONSTRUCTION)
-        // "Upcoming" most closely maps to PLANNING (and optionally CONSTRUCTION as fallback)
-        const statusOptions = ['PLANNING', 'CONSTRUCTION'];
-        let data: any = [];
-
-        for (const status of statusOptions) {
-          try {
-            const response = await api.getProjectsByStatus(status);
-            console.log(`Received data for status "${status}":`, response);
-
-            let responseData = response;
-            // Handle if response is an object with a data/projects array
-            if (responseData && typeof responseData === 'object' && !Array.isArray(responseData)) {
-              if (Array.isArray(responseData.data)) {
-                responseData = responseData.data;
-              } else if (Array.isArray(responseData.projects)) {
-                responseData = responseData.projects;
-              } else if (Array.isArray(responseData.results)) {
-                responseData = responseData.results;
-              }
-            }
-
-            if (Array.isArray(responseData) && responseData.length > 0) {
-              data = responseData;
-              console.log(`Found ${data.length} projects with status "${status}"`);
-              break; // Found projects, stop trying other statuses
-            }
-          } catch (error) {
-            console.log(`Status "${status}" failed, trying next...`);
-            // Continue to next status
-          }
-        }
-
-        // If no data found from status endpoint, try using getProjects with status filter
-        if (!Array.isArray(data) || data.length === 0) {
-          console.log('Status endpoint didn\'t return data, trying getProjects with status filter...');
-          try {
-            // Try with different status values
-            for (const status of statusOptions) {
-              const allProjects = await api.getProjects({ status });
-              console.log(`Fetched projects with status "${status}":`, allProjects);
-
-              let projectsData = allProjects;
-              if (projectsData && typeof projectsData === 'object' && !Array.isArray(projectsData)) {
-                if (Array.isArray(projectsData.data)) {
-                  projectsData = projectsData.data;
-                } else if (Array.isArray(projectsData.projects)) {
-                  projectsData = projectsData.projects;
-                } else if (Array.isArray(projectsData.results)) {
-                  projectsData = projectsData.results;
-                }
-              }
-
-              if (Array.isArray(projectsData) && projectsData.length > 0) {
-                data = projectsData;
-                console.log(`Found ${data.length} projects using getProjects with status "${status}"`);
-                break;
-              }
-            }
-          } catch (error) {
-            console.error('Error fetching projects with status filter:', error);
-          }
-        }
-
-        // Last fallback: fetch all and filter by status text (API might not support status filtering as expected)
-        if (!Array.isArray(data) || data.length === 0) {
-          try {
-            let allProjects = await api.getProjects({ limit: 200 });
-            if (allProjects && typeof allProjects === 'object' && !Array.isArray(allProjects)) {
-              if (Array.isArray((allProjects as any).data)) {
-                allProjects = (allProjects as any).data;
-              } else if (Array.isArray((allProjects as any).projects)) {
-                allProjects = (allProjects as any).projects;
-              } else if (Array.isArray((allProjects as any).results)) {
-                allProjects = (allProjects as any).results;
-              }
-            }
-
-            if (Array.isArray(allProjects)) {
-              const tokens = ['upcoming', 'coming', 'soon'];
-              data = allProjects.filter((p: Project) => {
-                const s = (p.status ?? '').toString().toLowerCase();
-                return tokens.some((t) => s.includes(t));
-              });
-              console.log(`Fallback filtered ${data.length} upcoming projects from all projects`);
-            }
-          } catch (e) {
-            console.warn('Fallback filter from all projects failed:', e);
-          }
-        }
-
-        if (Array.isArray(data)) {
-          const publishedProjects = data.filter((p: any) => p.published === true);
-          setProjects(publishedProjects);
-          console.log(`Set ${publishedProjects.length} upcoming projects`);
-        } else {
-          console.warn('Upcoming projects data is not an array:', data);
-          setProjects([]);
-        }
-      } catch (error) {
-        console.error('Error fetching upcoming projects:', error);
-        setProjects([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUpcomingProjects();
-  }, []);
+    if (!contextLoading) {
+      const published = upcomingProjects
+        .filter((p: any) => p.published === true || p.published === undefined);
+      setProjects(published as any);
+      setLoading(false);
+    }
+  }, [upcomingProjects, contextLoading]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);

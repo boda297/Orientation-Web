@@ -8,8 +8,12 @@ import {
     ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
-import { getApiUrl, getFileUrl } from '@/lib/api';
-import { getAccessToken } from '@/lib/auth';
+import { getFileUrl } from '@/lib/http/url';
+import { projectsApi } from '@/lib/api/projects.api';
+import { developersApi } from '@/lib/api/developer.api';
+import { episodesApi } from '@/lib/api/episodes.api';
+import { reelsApi } from '@/lib/api/reels.api';
+import { inventoryApi, pdfsApi } from '@/lib/api/files.api';
 import LocationSelect from '@/components/LocationSelect';
 import { formatLocationName } from '@/lib/locationUtils';
 
@@ -213,16 +217,13 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
     useEffect(() => {
         const load = async () => {
             try {
-                const token = getAccessToken();
-                const authHeader = { Authorization: `Bearer ${token}` };
-                const [projRes, devRes] = await Promise.all([
-                    fetch(getApiUrl(`/projects/${id}`)),
-                    fetch(getApiUrl('/developer'), { headers: authHeader })
+                const [projData, devData] = await Promise.all([
+                    projectsApi.get(id),
+                    developersApi.list()
                 ]);
-                if (projRes.ok) { const data = await projRes.json(); setProject(data); }
-                if (devRes.ok) {
-                    const data = await devRes.json();
-                    setDevelopers(Array.isArray(data) ? data : (data.developers || data.data || []));
+                if (projData) setProject(projData as any);
+                if (devData) {
+                    setDevelopers(Array.isArray(devData) ? devData : ((devData as any).developers || (devData as any).data || []));
                 }
             } catch (err) { console.error(err); } finally { setLoadingProject(false); }
         };
@@ -312,15 +313,8 @@ function ProjectDetailsTab({ project, developers, id, onUpdate }: {
             if (logo) fd.append('logo', logo);
             if (heroVideo) fd.append('heroVideo', heroVideo);
             if (thumbnail) fd.append('projectThumbnail', thumbnail);
-            const token = getAccessToken();
-            const res = await fetch(getApiUrl(`/projects/${id}`), {
-                method: 'PATCH', headers: { Authorization: `Bearer ${token}` }, body: fd,
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => null);
-                throw new Error(err?.message || 'Failed to update project');
-            }
-            const updated = await res.json();
+            const res = await projectsApi.update(id, fd);
+            const updated = (res as any)?.project || res;
             onUpdate(updated);
             setBanner({ type: 'success', msg: 'Project updated successfully!' });
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -413,13 +407,10 @@ function EpisodesTab({ project, id, onUpdate }: { project: Project; id: string; 
             if (!editingEp) fd.append('projectId', id);
             if (epThumb) fd.append('thumbnail', epThumb);
             if (epVideo) fd.append('episodeFile', epVideo);
-            const token = getAccessToken();
-            const url = editingEp ? getApiUrl(`/episode/${editingEp._id}`) : getApiUrl('/episode');
-            const res = await fetch(url, { method: editingEp ? 'PATCH' : 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-            if (!res.ok) { const err = await res.json().catch(()=>null); throw new Error(err?.message||'Failed to save episode'); }
-            const body = await res.json();
-            // Backend wraps POST response: { message, episode } — PATCH returns the episode directly
-            const saved: Episode = body?.episode ?? body;
+            const res = editingEp
+                ? await episodesApi.update(editingEp._id, fd)
+                : await episodesApi.create(fd);
+            const saved: Episode = (res as any)?.episode ?? (res as any);
             if (editingEp) { setEpisodes(prev => prev.map(ep => ep._id === saved._id ? saved : ep)); setBanner({type:'success',msg:'Episode updated!'}); }
             else { setEpisodes(prev=>[...prev,saved]); setBanner({type:'success',msg:'Episode added!'}); }
             cancelForm();
@@ -429,9 +420,7 @@ function EpisodesTab({ project, id, onUpdate }: { project: Project; id: string; 
     const handleDelete = async (epId: string) => {
         if (!window.confirm('Delete this episode?')) return;
         try {
-            const token = getAccessToken();
-            const res = await fetch(getApiUrl(`/episode/${epId}`), { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-            if (!res.ok) throw new Error('Failed to delete');
+            await episodesApi.delete(epId);
             setEpisodes(prev => prev.filter(ep => ep._id !== epId));
             setBanner({type:'success',msg:'Episode deleted.'});
         } catch (err: any) { setBanner({type:'error',msg:err.message}); }
@@ -517,13 +506,10 @@ function ReelsTab({ project, id, onUpdate }: { project: Project; id: string; onU
             if (!editingReel) fd.append('projectId', id);
             if (reelVideo) fd.append('file', reelVideo);
             if (reelThumb) fd.append('thumbnail', reelThumb);
-            const token = getAccessToken();
-            const url = editingReel ? getApiUrl(`/reels/${editingReel._id}`) : getApiUrl('/reels');
-            const res = await fetch(url, { method: editingReel ? 'PATCH' : 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-            if (!res.ok) { const err = await res.json().catch(()=>null); throw new Error(err?.message||'Failed to save reel'); }
-            const body = await res.json();
-            // Backend wraps POST response: { message, reel } — PATCH returns the reel directly
-            const saved: Reel = body?.reel ?? body;
+            const res = editingReel
+                ? await reelsApi.update(editingReel._id, fd)
+                : await reelsApi.create(fd);
+            const saved: Reel = (res as any)?.reel ?? (res as any);
             if (editingReel) { setReels(prev=>prev.map(r=>r._id===saved._id?saved:r)); setBanner({type:'success',msg:'Reel updated!'}); }
             else { setReels(prev=>[...prev,saved]); setBanner({type:'success',msg:'Reel added!'}); }
             cancelForm();
@@ -533,9 +519,7 @@ function ReelsTab({ project, id, onUpdate }: { project: Project; id: string; onU
     const handleDelete = async (reelId: string) => {
         if (!window.confirm('Delete this reel?')) return;
         try {
-            const token = getAccessToken();
-            const res = await fetch(getApiUrl(`/reels/${reelId}`), { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-            if (!res.ok) throw new Error('Failed to delete');
+            await reelsApi.delete(reelId);
             setReels(prev=>prev.filter(r=>r._id!==reelId));
             setBanner({type:'success',msg:'Reel deleted.'});
         } catch (err: any) { setBanner({type:'error',msg:err.message}); }
@@ -603,12 +587,11 @@ function InventoryTab({ project, id, onUpdate }: { project: Project; id: string;
             const fd = new FormData();
             fd.append('title', invTitle);
             fd.append('projectId', id);
-            if (invFile) fd.append('file', invFile);
-            const token = getAccessToken();
-            const url = inventory ? getApiUrl(`/files/inventory/${inventory._id}`) : getApiUrl('/files/upload/inventory');
-            const res = await fetch(url, { method: inventory?'PATCH':'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-            if (!res.ok) { const err = await res.json().catch(()=>null); throw new Error(err?.message||'Failed to save inventory'); }
-            const saved: Inventory = await res.json();
+            if (invFile) fd.append('inventory', invFile);
+            const res = inventory
+                ? await inventoryApi.update(inventory._id, fd)
+                : await inventoryApi.create(fd);
+            const saved: Inventory = (res as any)?.inventory ?? (res as any);
             setInventory(saved);
             setBanner({type:'success',msg:inventory?'Inventory updated!':'Inventory uploaded!'});
             cancelForm();
@@ -618,9 +601,7 @@ function InventoryTab({ project, id, onUpdate }: { project: Project; id: string;
     const handleDelete = async () => {
         if (!inventory || !window.confirm('Delete inventory?')) return;
         try {
-            const token = getAccessToken();
-            const res = await fetch(getApiUrl(`/files/inventory/${inventory._id}`), { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-            if (!res.ok) throw new Error('Failed to delete');
+            await inventoryApi.delete(inventory._id);
             setInventory(null);
             setBanner({type:'success',msg:'Inventory deleted.'});
         } catch (err: any) { setBanner({type:'error',msg:err.message}); }
@@ -686,12 +667,11 @@ function PdfsTab({ project, id, onUpdate }: { project: Project; id: string; onUp
             const fd = new FormData();
             fd.append('title', pdfTitle);
             if (!editingPdf) fd.append('projectId', id);
-            if (pdfFile) fd.append('file', pdfFile);
-            const token = getAccessToken();
-            const url = editingPdf ? getApiUrl(`/files/pdf/${editingPdf._id}`) : getApiUrl('/files/upload/pdf');
-            const res = await fetch(url, { method: editingPdf?'PATCH':'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-            if (!res.ok) { const err = await res.json().catch(()=>null); throw new Error(err?.message||'Failed to save PDF'); }
-            const saved: Pdf = await res.json();
+            if (pdfFile) fd.append('PDF', pdfFile);
+            const res = editingPdf
+                ? await pdfsApi.update(editingPdf._id, fd)
+                : await pdfsApi.create(fd);
+            const saved: Pdf = (res as any)?.pdf ?? (res as any);
             if (editingPdf) { setPdfs(prev=>prev.map(p=>p._id===saved._id?saved:p)); setBanner({type:'success',msg:'PDF updated!'}); }
             else { setPdfs(prev=>[...prev,saved]); setBanner({type:'success',msg:'PDF added!'}); }
             cancelForm();
@@ -701,9 +681,7 @@ function PdfsTab({ project, id, onUpdate }: { project: Project; id: string; onUp
     const handleDelete = async (pdfId: string) => {
         if (!window.confirm('Delete this PDF?')) return;
         try {
-            const token = getAccessToken();
-            const res = await fetch(getApiUrl(`/files/pdf/${pdfId}`), { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-            if (!res.ok) throw new Error('Failed to delete');
+            await pdfsApi.delete(pdfId);
             setPdfs(prev=>prev.filter(p=>p._id!==pdfId));
             setBanner({type:'success',msg:'PDF deleted.'});
         } catch (err: any) { setBanner({type:'error',msg:err.message}); }

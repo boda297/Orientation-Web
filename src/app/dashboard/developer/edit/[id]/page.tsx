@@ -4,7 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { ChevronLeft, Loader2, CheckCircle2, AlertCircle, Building2, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { developersApi, type Developer, type UpdateDeveloperPayload } from '@/lib/dashboardApi';
-import { getAccessToken } from '@/lib/auth';
+import { tokenStorage } from '@/lib/http/tokenStorage';
 import LocationSelect from '@/components/LocationSelect';
 import { formatLocationName, formatDeveloperName } from '@/lib/locationUtils';
 
@@ -13,7 +13,7 @@ const inputCls =
 
 function getRoleFromToken(): string | null {
     try {
-        const token = getAccessToken();
+        const token = tokenStorage.getAccessToken();
         if (!token) return null;
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload.role ?? null;

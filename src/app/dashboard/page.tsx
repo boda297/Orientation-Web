@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getAccessToken } from '@/lib/auth';
+import { tokenStorage } from '@/lib/http/tokenStorage';
 
 export default function DashboardOverview() {
     const [userRole, setUserRole] = useState<string | null>(null);
 
     useEffect(() => {
-        const token = getAccessToken();
-        if (token && token !== 'undefined' && token !== 'null' && token.trim() !== '') {
+        if (tokenStorage.isValid()) {
+            const token = tokenStorage.getAccessToken()!;
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 setUserRole(payload.role?.toLowerCase() || null);

@@ -5,20 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { api, getFileUrl } from '@/lib/api';
-
-interface NewsItem {
-    _id: string;
-    title: string;
-    thumbnail?: string;
-    projectId?: any;
-    developer?: string;
-    createdAt?: string;
-}
+import { newsApi, type News } from '@/lib/api/news.api';
+import { getFileUrl } from '@/lib/http/url';
 
 export default function NewsPage() {
     const router = useRouter();
-    const [news, setNews] = useState<NewsItem[]>([]);
+    const [news, setNews] = useState<News[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -26,12 +18,9 @@ export default function NewsPage() {
         const fetchNews = async () => {
             try {
                 setLoading(true);
-                const data = await api.getNews();
-                // Ensure data is array
+                const data = await newsApi.list();
                 if (Array.isArray(data)) {
                     setNews(data);
-                } else if (data && typeof data === 'object' && Array.isArray(data.data)) {
-                    setNews(data.data);
                 } else {
                     setNews([]);
                 }
@@ -74,7 +63,7 @@ export default function NewsPage() {
 
                         <div className="space-y-6">
                             {news.map((item) => {
-                                const projectId = item.projectId?._id || (typeof item.projectId === 'string' ? item.projectId : '');
+                                const projectId = typeof item.projectId === 'object' && item.projectId ? (item.projectId as any)._id : (typeof item.projectId === 'string' ? item.projectId : '');
                                 return (
                                     <div key={item._id} className="bg-[#1e272e] rounded-xl overflow-hidden border border-gray-800 transition-transform hover:scale-[1.02]">
                                         <div 

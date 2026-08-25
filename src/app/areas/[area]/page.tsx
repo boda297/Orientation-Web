@@ -7,20 +7,12 @@ import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ChatWidget from '@/components/ChatWidget';
-import { api, getFileUrl } from '@/lib/api';
-
-interface Project {
-  _id: string;
-  title: string;
-  location?: string;
-  projectThumbnailUrl?: string;
-  developer?: {
-    name: string;
-  };
-}
+import { projectsApi } from '@/lib/api/projects.api';
+import { getFileUrl } from '@/lib/http/url';
+import type { IProject } from '@/types/projects.types';
 
 interface ProjectCardProps {
-  project: Project;
+  project: IProject;
 }
 
 function ProjectCard({ project }: ProjectCardProps) {
@@ -61,20 +53,22 @@ function ProjectCard({ project }: ProjectCardProps) {
 
       localStorage.setItem('savedProjects', JSON.stringify(savedIds));
       setSaved(newSavedState);
-    } catch (err) {
-      console.error('Failed to update saved projects', err);
+    } catch (error) {
+      console.error('Error saving project:', error);
     }
   };
 
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
     const url = `${window.location.origin}/project/${project._id}`;
 
-    // Helper to show tooltip
     const showSuccess = () => {
       setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
+      setTimeout(() => {
+        setShowCopied(false);
+      }, 2000);
     };
 
     // Attempt to use native mobile Share API first ONLY if on mobile
@@ -82,7 +76,7 @@ function ProjectCard({ project }: ProjectCardProps) {
       navigator.share({
         title: `Check out ${project.title} on Orientation`,
         url: url
-      }).catch((err) => console.log('Share cancelled', err));
+      }).catch(() => {});
       return;
     }
 
@@ -141,14 +135,21 @@ function ProjectCard({ project }: ProjectCardProps) {
         </div>
       </div>
 
-      {/* Project Info */}
+      {/* Project Details */}
       <div className="flex-1 flex flex-col justify-between">
         <div>
-          <h3 className="text-white font-bold text-xl md:text-2xl mb-2">{project.title}</h3>
+          <h3 className="text-xl md:text-2xl font-bold text-white mb-2 group-hover:text-red-500 transition-colors">
+            {project.title}
+          </h3>
           {project.location && (
-            <p className="text-gray-300 text-sm md:text-base mb-4">{project.location}</p>
+            <p className="text-gray-300 text-sm md:text-base mb-1 flex items-center gap-1">
+              <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+              </svg>
+              {project.location}
+            </p>
           )}
-          {project.developer?.name && (
+          {typeof project.developer === 'object' && project.developer?.name && (
             <p className="text-gray-400 text-sm md:text-base">{project.developer.name}</p>
           )}
         </div>
@@ -189,7 +190,7 @@ export default function AreaProjectsPage({ params }: { params: Promise<{ area: s
   const resolvedParams = use(params);
   const areaName = decodeURIComponent(resolvedParams.area);
 
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<IProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -197,48 +198,19 @@ export default function AreaProjectsPage({ params }: { params: Promise<{ area: s
     const fetchProjects = async () => {
       try {
         setLoading(true);
-        console.log(`Fetching projects for area: "${areaName}"`);
-
-        // Try the location endpoint first
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let data: any;
+        let data: any[] = [];
         try {
-          data = await api.getProjectsByLocation(areaName);
-          console.log(`Received data from location endpoint for ${areaName}:`, data);
-
-          // Handle if response is an object with a data/projects array
-          if (data && typeof data === 'object' && !Array.isArray(data)) {
-            if (Array.isArray(data.data)) {
-              data = data.data;
-            } else if (Array.isArray(data.projects)) {
-              data = data.projects;
-            } else if (Array.isArray(data.results)) {
-              data = data.results;
-            }
+          const res = await projectsApi.getByLocation(areaName);
+          if (Array.isArray(res)) {
+            data = res;
           }
         } catch (locationError) {
           console.warn(`Location endpoint failed, trying to fetch all projects and filter:`, locationError);
           // If location endpoint fails, fetch all projects and filter by location
-          let allProjects = await api.getProjects();
-          console.log(`Fetched projects response:`, allProjects);
-
-          // Handle if response is an object with a data/projects array
-          if (allProjects && typeof allProjects === 'object' && !Array.isArray(allProjects)) {
-            if (Array.isArray(allProjects.data)) {
-              allProjects = allProjects.data;
-            } else if (Array.isArray(allProjects.projects)) {
-              allProjects = allProjects.projects;
-            } else if (Array.isArray(allProjects.results)) {
-              allProjects = allProjects.results;
-            }
-          }
-
-          console.log(`Total projects to filter: ${Array.isArray(allProjects) ? allProjects.length : 0}`);
-
+          const allProjects = await projectsApi.list();
           if (Array.isArray(allProjects)) {
-            // Filter projects by location (case-insensitive, partial match)
             const areaNameLower = areaName.toLowerCase();
-            data = allProjects.filter((project: Project) => {
+            data = allProjects.filter((project: any) => {
               const projectLocation = project.location?.toLowerCase() || '';
               return (
                 projectLocation === areaNameLower ||
@@ -247,18 +219,13 @@ export default function AreaProjectsPage({ params }: { params: Promise<{ area: s
                 projectLocation.replace(/\s+/g, '') === areaNameLower.replace(/\s+/g, '')
               );
             });
-            console.log(`Filtered ${data.length} projects for ${areaName}`);
-          } else {
-            data = [];
           }
         }
 
         if (Array.isArray(data)) {
-          const publishedProjects = data.filter((p: any) => p.published === true);
-          setProjects(publishedProjects);
-          console.log(`Set ${publishedProjects.length} projects for ${areaName}`);
+          const publishedProjects = data.filter((p: any) => p.published === true || p.published === undefined);
+          setProjects(publishedProjects as any);
         } else {
-          console.warn(`Data is not an array for ${areaName}:`, data);
           setProjects([]);
         }
       } catch (error) {
