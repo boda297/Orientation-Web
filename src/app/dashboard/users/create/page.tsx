@@ -10,6 +10,7 @@ export default function CreateUserPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [role, setRole] = useState('user');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
@@ -21,12 +22,13 @@ export default function CreateUserPage() {
         setError('');
 
         try {
-            await usersApi.create({ username, email, password, phoneNumber });
+            await usersApi.create({ username, email, password, phoneNumber, role });
             setSuccess(true);
             setUsername('');
             setEmail('');
             setPassword('');
             setPhoneNumber('');
+            setRole('user');
         } catch (err: any) {
             setError(err.message || 'Failed to create user.');
         } finally {
@@ -111,6 +113,22 @@ export default function CreateUserPage() {
                         </div>
 
                         <div className="flex flex-col gap-2">
+                            <label className="text-sm font-semibold text-gray-300">
+                                Role <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={role}
+                                onChange={(e) => setRole(e.target.value)}
+                                required
+                                className="w-full h-12 bg-black border border-zinc-700 rounded-xl px-4 text-white focus:border-red-500 focus:outline-none transition-colors"
+                            >
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                                <option value="superadmin">Superadmin</option>
+                            </select>
+                        </div>
+
+                        <div className="flex flex-col gap-2 md:col-span-2">
                             <label className="text-sm font-semibold text-gray-300">
                                 Password <span className="text-red-500">*</span>
                             </label>

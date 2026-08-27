@@ -64,8 +64,13 @@ function FileZone({
         return () => URL.revokeObjectURL(url);
     }, [file]);
 
-    const isImage = accept.includes('image');
-    const isVideo = accept.includes('video');
+    const isImage = accept.includes('image') && !accept.includes('video');
+    const isVideoOrMixed = accept.includes('video');
+    const isFileAnImage = file
+        ? file.type.startsWith('image/')
+        : existingUrl
+        ? /\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i.test(existingUrl)
+        : false;
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -76,8 +81,8 @@ function FileZone({
     const previewUrl = hasNew ? newPreviewUrl : hasExisting ? getFileUrl(existingUrl as string) : null;
     const showPreview = !!previewUrl;
 
-    // Video zones get a 16:9 playable player
-    if (isVideo) {
+    // Video/Mixed media zones get a 16:9 player/preview
+    if (isVideoOrMixed) {
         return (
             <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-gray-300">
@@ -96,8 +101,13 @@ function FileZone({
                     <input ref={ref} type="file" accept={accept} className="hidden"
                         onChange={e => onChange(e.target.files?.[0] ?? null)} />
                     {previewUrl ? (
-                        <video src={previewUrl} controls className="w-full h-full object-contain bg-black"
-                            onClick={e => e.stopPropagation()} />
+                        isFileAnImage ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={previewUrl} alt={label} className="w-full h-full object-cover" />
+                        ) : (
+                            <video src={previewUrl} controls className="w-full h-full object-contain bg-black"
+                                onClick={e => e.stopPropagation()} />
+                        )
                     ) : (
                         <div className="flex flex-col items-center justify-center w-full h-full gap-2">
                             <Icon className="w-8 h-8 text-gray-500" />
@@ -368,7 +378,7 @@ function ProjectDetailsTab({ project, developers, id, onUpdate }: {
                 <h2 className="text-xl font-bold text-white border-b border-zinc-800 pb-2">Media Files</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <FileZone label="Logo" icon={ImageIcon} accept="image/*" file={logo} existingUrl={project.logoUrl} onChange={setLogo} />
-                    <FileZone label="Hero Video" icon={Video} accept="video/*" file={heroVideo} existingUrl={project.heroVideoUrl} onChange={setHeroVideo} />
+                    <FileZone label="Hero Media (Video/Image)" icon={Video} accept="video/*,image/*" file={heroVideo} existingUrl={project.heroVideoUrl} onChange={setHeroVideo} />
                     <FileZone label="Project Thumbnail" icon={ImageIcon} accept="image/*" file={thumbnail} existingUrl={project.projectThumbnailUrl} onChange={setThumbnail} />
                 </div>
             </div>

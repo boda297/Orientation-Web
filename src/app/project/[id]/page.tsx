@@ -293,9 +293,11 @@ export default function ProjectDetailsPage({
     }
   }, [autoPlayEpisodeId, project?.episodes]);
 
+  const isHeroImage = !!project?.heroVideoUrl && /\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i.test(project.heroVideoUrl);
+
   // Try to play video when project loads
   useEffect(() => {
-    if (project?.heroVideoUrl && heroVideoRef.current && !videoError) {
+    if (project?.heroVideoUrl && !isHeroImage && heroVideoRef.current && !videoError) {
       const video = heroVideoRef.current;
 
       // Reset video
@@ -310,7 +312,7 @@ export default function ProjectDetailsPage({
 
       return () => clearTimeout(playTimeout);
     }
-  }, [project?.heroVideoUrl, videoError]);
+  }, [project?.heroVideoUrl, isHeroImage, videoError]);
 
   // Fetch project data
   useEffect(() => {
@@ -556,7 +558,7 @@ export default function ProjectDetailsPage({
       <main className="pt-16 md:pt-20">
         {/* Video Player Section */}
         <div className="relative w-full h-[40vh] sm:h-[50vh] md:h-[70vh] overflow-hidden bg-black">
-          {project?.heroVideoUrl && !videoError ? (
+          {project?.heroVideoUrl && !isHeroImage && !videoError ? (
             <video
               ref={heroVideoRef}
               className="absolute inset-0 w-full h-full object-cover z-0"
@@ -588,7 +590,9 @@ export default function ProjectDetailsPage({
             <div
               className="absolute inset-0 bg-cover bg-center z-0"
               style={{
-                backgroundImage: project?.projectThumbnailUrl
+                backgroundImage: isHeroImage && project?.heroVideoUrl
+                  ? `url(${getFileUrl(project.heroVideoUrl)})`
+                  : project?.projectThumbnailUrl
                   ? `url(${getFileUrl(project.projectThumbnailUrl)})`
                   : "none",
                 backgroundColor: "#000",
@@ -619,7 +623,7 @@ export default function ProjectDetailsPage({
             </Link>
           </div>
           <div className="absolute top-2 right-2 md:top-4 md:right-4 flex gap-2 z-30">
-            {project?.heroVideoUrl && !videoError && (
+            {project?.heroVideoUrl && !isHeroImage && !videoError && (
               <>
                 <button
                   onClick={() => setIsMuted(!isMuted)}

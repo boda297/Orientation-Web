@@ -44,7 +44,7 @@ export default function Hero() {
     videoRefs.current.forEach((video, index) => {
       if (!video) return;
       if (index === currentVideoIndex) {
-        video.play().catch(() => {});
+        video.play().catch(() => { });
       } else {
         video.pause();
         video.currentTime = 0; // Optional: Reset video when not active
@@ -65,7 +65,7 @@ export default function Hero() {
             });
           } else {
             if (videoRefs.current[currentVideoIndex]) {
-              videoRefs.current[currentVideoIndex]?.play().catch(() => {});
+              videoRefs.current[currentVideoIndex]?.play().catch(() => { });
             }
           }
         });
@@ -203,8 +203,8 @@ export default function Hero() {
             className="w-full h-full relative"
             style={{ width: `${100 / featuredProjects.length}%` }}
           >
-            {/* Video Background */}
-            {project.heroVideoUrl ? (
+            {/* Video or Image Background */}
+            {project.heroVideoUrl && !/\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i.test(project.heroVideoUrl) ? (
               <video
                 ref={(el) => {
                   videoRefs.current[index] = el;
@@ -221,9 +221,11 @@ export default function Hero() {
               <div
                 className="absolute inset-0 bg-cover bg-center pointer-events-none"
                 style={{
-                  backgroundImage: project.projectThumbnailUrl
-                    ? `url(${getFileUrl(project.projectThumbnailUrl)})`
-                    : "none",
+                  backgroundImage: project.heroVideoUrl && /\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i.test(project.heroVideoUrl)
+                    ? `url(${getFileUrl(project.heroVideoUrl)})`
+                    : project.projectThumbnailUrl
+                      ? `url(${getFileUrl(project.projectThumbnailUrl)})`
+                      : "none",
                   backgroundColor: "#000",
                 }}
               />

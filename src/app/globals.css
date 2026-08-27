@@ -77,3 +77,164 @@ html {
     transform: translateX(200%) skewX(-12deg);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   FREE ORIENTATIONS SECTION — Cinematic Animations
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Neon ambient glow pulse behind the spotlight card */
+@keyframes neonPulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+    filter: blur(60px);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+    filter: blur(80px);
+  }
+}
+.animate-neon-pulse {
+  animation: neonPulse 4s ease-in-out infinite;
+}
+
+/* Light sweep / laser wipe across cards */
+@keyframes lightSweep {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(250%) skewX(-15deg);
+    opacity: 0;
+  }
+}
+.animate-light-sweep {
+  animation: lightSweep 2.5s ease-in-out;
+}
+
+/* Soundwave ripple rings from play button */
+@keyframes soundwaveRipple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.7;
+    border-width: 3px;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+.animate-soundwave-1 {
+  animation: soundwaveRipple 2s ease-out infinite;
+}
+.animate-soundwave-2 {
+  animation: soundwaveRipple 2s ease-out infinite 0.5s;
+}
+.animate-soundwave-3 {
+  animation: soundwaveRipple 2s ease-out infinite 1s;
+}
+
+/* Floating particles in the background */
+@keyframes floatParticle {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-120px) translateX(30px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* Border gradient rotation for spotlight frame */
+@keyframes borderGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+.animate-border-gradient {
+  background-size: 300% 300%;
+  animation: borderGradient 4s ease infinite;
+}
+
+/* Badge glow for FREE/UNLOCKED labels */
+@keyframes badgeGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4), 0 0 16px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.6), 0 0 32px rgba(16, 185, 129, 0.3);
+  }
+}
+.animate-badge-glow {
+  animation: badgeGlow 2s ease-in-out infinite;
+}
+
+/* Cinematic reveal — content slides up */
+@keyframes cinematicReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-cinematic-reveal {
+  animation: cinematicReveal 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Stagger animation delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* Title text gradient animation */
+@keyframes textGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-text-gradient {
+  background-size: 200% auto;
+  animation: textGradient 3s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Dot pulse for "LIVE FREE" indicator */
+@keyframes dotPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+.animate-dot-pulse {
+  animation: dotPulse 1.5s ease-in-out infinite;
+}

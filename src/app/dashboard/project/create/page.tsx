@@ -58,22 +58,67 @@ function ImageZone({
     );
 }
 
-/** 16:9 video upload with native video player preview */
-function VideoZone({
-    label, file, onChange, required,
+/** 16:9 hero background media upload with support for both video and image */
+function HeroMediaZone({
+    mediaType,
+    onMediaTypeChange,
+    file,
+    onChange,
+    required,
 }: {
-    label: string;
+    mediaType: 'video' | 'image';
+    onMediaTypeChange: (type: 'video' | 'image') => void;
     file: File | null;
     onChange: (f: File | null) => void;
     required?: boolean;
 }) {
     const ref = useRef<HTMLInputElement>(null);
     const previewUrl = file ? URL.createObjectURL(file) : null;
+
     return (
-        <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-300">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
+        <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-gray-300">
+                    Hero Background {mediaType === 'video' ? 'Video' : 'Image'} {required && <span className="text-red-500">*</span>}
+                </label>
+                <div className="flex items-center bg-zinc-900 border border-zinc-800 p-1 rounded-xl gap-1">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (mediaType !== 'video') {
+                                onMediaTypeChange('video');
+                                onChange(null);
+                            }
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                            mediaType === 'video'
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                                : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        <Video className="w-3.5 h-3.5" />
+                        Video
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (mediaType !== 'image') {
+                                onMediaTypeChange('image');
+                                onChange(null);
+                            }
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                            mediaType === 'image'
+                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                                : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        Image
+                    </button>
+                </div>
+            </div>
+
             <div
                 className="relative border-2 border-dashed border-zinc-700 hover:border-red-500 bg-black rounded-xl cursor-pointer transition-colors overflow-hidden"
                 style={{ aspectRatio: '16 / 9' }}
@@ -82,21 +127,36 @@ function VideoZone({
                 <input
                     ref={ref}
                     type="file"
-                    accept="video/*"
+                    accept={mediaType === 'video' ? 'video/*' : 'image/*'}
                     className="hidden"
                     onChange={(e) => onChange(e.target.files?.[0] ?? null)}
                 />
                 {previewUrl ? (
-                    <video
-                        src={previewUrl}
-                        controls
-                        className="w-full h-full object-contain bg-black"
-                        onClick={(e) => e.stopPropagation()}
-                    />
+                    mediaType === 'video' ? (
+                        <video
+                            src={previewUrl}
+                            controls
+                            className="w-full h-full object-contain bg-black"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={previewUrl}
+                            alt="Hero Background Preview"
+                            className="w-full h-full object-cover"
+                        />
+                    )
                 ) : (
                     <div className="flex flex-col items-center justify-center w-full h-full gap-2 p-4">
-                        <Video className="w-8 h-8 text-gray-500" />
-                        <p className="text-gray-400 text-xs text-center">Click to upload {label}</p>
+                        {mediaType === 'video' ? (
+                            <Video className="w-8 h-8 text-gray-500" />
+                        ) : (
+                            <ImageIcon className="w-8 h-8 text-gray-500" />
+                        )}
+                        <p className="text-gray-400 text-xs text-center">
+                            Click to upload Hero Background {mediaType === 'video' ? 'Video' : 'Image'}
+                        </p>
                     </div>
                 )}
                 {previewUrl && (
@@ -123,7 +183,8 @@ export default function CreateProjectPage() {
 
     const [thumbnail, setThumbnail] = useState<File | null>(null);  // → projectThumbnail
     const [logoImage, setLogoImage] = useState<File | null>(null);   // → logo
-    const [heroVideo, setHeroVideo] = useState<File | null>(null);   // → heroVideo (required)
+    const [heroMediaType, setHeroMediaType] = useState<'video' | 'image'>('video');
+    const [heroMedia, setHeroMedia] = useState<File | null>(null);   // → heroVideo (video or image)
 
     const [developers, setDevelopers] = useState<Developer[]>([]);
     const [loading, setLoading] = useState(false);
@@ -136,7 +197,7 @@ export default function CreateProjectPage() {
 
     const resetForm = () => {
         setTitle(''); setDeveloperId(''); setLocation(''); setStatus('PLANNING'); setWhatsapp(''); setScript('');
-        setThumbnail(null); setLogoImage(null); setHeroVideo(null);
+        setThumbnail(null); setLogoImage(null); setHeroMedia(null); setHeroMediaType('video');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -146,7 +207,11 @@ export default function CreateProjectPage() {
         setSuccess(false);
         setError('');
 
-        if (!heroVideo) { setError('Please upload a hero background video.'); setLoading(false); return; }
+        if (!heroMedia) {
+            setError(`Please upload a hero background ${heroMediaType}.`);
+            setLoading(false);
+            return;
+        }
         if (!developerId) { setError('Please select a developer.'); setLoading(false); return; }
 
         try {
@@ -159,7 +224,7 @@ export default function CreateProjectPage() {
                 script,
                 whatsappNumber: whatsapp || undefined,
                 projectThumbnail: thumbnail ?? undefined,
-                heroVideo,
+                heroVideo: heroMedia,
                 logo: logoImage ?? undefined,
             });
             setSuccess(true);
@@ -275,7 +340,13 @@ export default function CreateProjectPage() {
                         <ImageZone label="Card Thumbnail" file={thumbnail} onChange={setThumbnail} />
                         <ImageZone label="Developer Logo" file={logoImage} onChange={setLogoImage} />
                     </div>
-                    <VideoZone label="Hero Background Video" file={heroVideo} onChange={setHeroVideo} required />
+                    <HeroMediaZone
+                        mediaType={heroMediaType}
+                        onMediaTypeChange={setHeroMediaType}
+                        file={heroMedia}
+                        onChange={setHeroMedia}
+                        required
+                    />
                 </div>
 
                 {/* Script */}
