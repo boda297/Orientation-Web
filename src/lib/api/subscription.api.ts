@@ -1,6 +1,8 @@
 import { httpClient } from '../http/httpClient';
 import { extractErrorMessage } from '../http/apiError';
 import type {
+  CheckoutResponse,
+  MySubscription,
   CreateSubscriptionPlanPayload,
   PaymobCheckoutPayload,
   PaymobCheckoutResponse,
@@ -11,49 +13,44 @@ import type {
 
 export * from '../../types/subscription.types';
 
-/**
- * Create a recurring subscription plan on Paymob
- */
-export async function createPaymobPlan(payload: CreateSubscriptionPlanPayload): Promise<any> {
-  try {
-    const response = await httpClient.post<any>('/subscription/paymob/plan', payload);
-    return response.data;
-  } catch (error) {
-    throw new Error(extractErrorMessage(error, 'Failed to create subscription plan'));
-  }
-}
+// ==========================================
+// 🚀 Subscriptions & Unified Checkout API
+// ==========================================
 
 /**
- * Retrieve all registered subscription plans from Paymob
+ * Initiate Paymob Checkout via Backend
+ * POST /subscriptions/checkout
  */
-export async function getPaymobPlans(): Promise<any[]> {
+export async function initiateCheckout(planId: string): Promise<CheckoutResponse> {
   try {
-    const response = await httpClient.get<any[]>('/subscription/paymob/plans');
-    return Array.isArray(response.data) ? response.data : ((response.data as any)?.plans || []);
-  } catch (error) {
-    throw new Error(extractErrorMessage(error, 'Failed to fetch subscription plans'));
-  }
-}
-
-/**
- * Initiate checkout and get Paymob iframe URL
- */
-export async function createPaymobCheckout(
-  payload: PaymobCheckoutPayload
-): Promise<PaymobCheckoutResponse> {
-  try {
-    const response = await httpClient.post<PaymobCheckoutResponse>(
-      '/subscription/paymob/checkout',
-      payload
+    const response = await httpClient.post<CheckoutResponse>(
+      '/subscriptions/checkout',
+      { planId }
     );
     return response.data;
   } catch (error) {
-    throw new Error(extractErrorMessage(error, 'Failed to initiate Paymob checkout'));
+    throw new Error(extractErrorMessage(error, 'Failed to initiate checkout'));
   }
 }
 
 /**
- * Retrieve all subscriptions
+ * Fetch Current User's Active Subscription
+ * GET /subscriptions/me
+ */
+export async function getMySubscription(): Promise<MySubscription> {
+  try {
+    const response = await httpClient.get<MySubscription>('/subscriptions/me', {
+      skipCache: true,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, 'Failed to fetch subscription status'));
+  }
+}
+
+/**
+ * Retrieve all subscriptions (Admin)
+ * GET /subscription
  */
 export async function getSubscriptions(): Promise<SubscriptionRecord[]> {
   try {
@@ -66,6 +63,7 @@ export async function getSubscriptions(): Promise<SubscriptionRecord[]> {
 
 /**
  * Retrieve single subscription by ID
+ * GET /subscription/:id
  */
 export async function getSubscriptionById(id: number | string): Promise<SubscriptionRecord> {
   try {
@@ -78,6 +76,7 @@ export async function getSubscriptionById(id: number | string): Promise<Subscrip
 
 /**
  * Create a new subscription record
+ * POST /subscription
  */
 export async function createSubscription(
   payload: CreateSubscriptionPayload
@@ -92,6 +91,7 @@ export async function createSubscription(
 
 /**
  * Update a subscription by ID
+ * PATCH /subscription/:id
  */
 export async function updateSubscription(
   id: number | string,
@@ -107,6 +107,7 @@ export async function updateSubscription(
 
 /**
  * Remove a subscription by ID
+ * DELETE /subscription/:id
  */
 export async function deleteSubscription(id: number | string): Promise<{ message: string }> {
   try {
@@ -117,14 +118,52 @@ export async function deleteSubscription(id: number | string): Promise<{ message
   }
 }
 
-/** Grouped subscription service */
+// ==========================================
+// 🛠️ Paymob Direct Integration Helpers
+// ==========================================
+
+export async function createPaymobPlan(payload: CreateSubscriptionPlanPayload): Promise<any> {
+  try {
+    const response = await httpClient.post<any>('/subscription/paymob/plan', payload);
+    return response.data;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, 'Failed to create paymob plan'));
+  }
+}
+
+export async function getPaymobPlans(): Promise<any[]> {
+  try {
+    const response = await httpClient.get<any[]>('/subscription/paymob/plans');
+    return Array.isArray(response.data) ? response.data : ((response.data as any)?.plans || []);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, 'Failed to fetch paymob plans'));
+  }
+}
+
+export async function createPaymobCheckout(
+  payload: PaymobCheckoutPayload
+): Promise<PaymobCheckoutResponse> {
+  try {
+    const response = await httpClient.post<PaymobCheckoutResponse>(
+      '/subscription/paymob/checkout',
+      payload
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, 'Failed to initiate paymob checkout'));
+  }
+}
+
+/** Grouped Subscriptions Service */
 export const subscriptionApi = {
-  createPlan: createPaymobPlan,
-  getPlans: getPaymobPlans,
-  checkout: createPaymobCheckout,
+  checkout: initiateCheckout,
+  getMySubscription,
   list: getSubscriptions,
   get: getSubscriptionById,
   create: createSubscription,
   update: updateSubscription,
   delete: deleteSubscription,
+  createPaymobPlan,
+  getPaymobPlans,
+  createPaymobCheckout,
 };

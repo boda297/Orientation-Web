@@ -30,4 +30,5 @@ export * from './upload.api';
 export * from './news.api';
 export * from './files.api';
 export * from './watchHistory.api';
+export * from './subscription-plan.api';
 export * from './subscription.api';

@@ -1,3 +1,6 @@
+import type { SubscriptionPlan } from './subscription-plan.types';
+export * from './subscription-plan.types';
+
 // ==========================================
 // 📥 Request Payloads
 // ==========================================
@@ -48,21 +51,45 @@ export interface UpdateSubscriptionPayload {
 }
 
 // ==========================================
-// 🗄️ Data Interface
+// 🗄️ Subscription Records
 // ==========================================
 
 export interface ISubscriptionRecord {
   id?: number | string;
   _id?: string;
   userId?: string;
-  planId?: string;
-  status?: string;
+  planId?: string | SubscriptionPlan;
+  status?: 'active' | 'pending' | 'expired' | 'cancelled' | string;
+  startDate?: Date | string;
+  endDate?: Date | string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
   [key: string]: any;
 }
 
 export type SubscriptionRecord = ISubscriptionRecord;
+
+/**
+ * Response from POST /subscriptions/checkout
+ */
+export interface CheckoutResponse {
+  message?: string;
+  checkoutUrl: string;        // Paymob hosted page URL
+  subscriptionId?: string;     // Internal subscription record ID
+}
+
+/**
+ * Response from GET /subscriptions/me
+ */
+export interface MySubscription {
+  subscription: {
+    _id: string;
+    status: 'active' | 'pending' | 'expired' | 'cancelled' | string;
+    planId?: string | SubscriptionPlan;
+    expiresAt?: string;
+    [key: string]: any;
+  } | null;
+}
 
 // ==========================================
 // 📤 API Responses

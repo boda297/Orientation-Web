@@ -34,7 +34,9 @@ export default function ProjectDetailsPage({
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
   const tabsContainerRef = useRef<HTMLDivElement | null>(null);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
-  const [selectedEpisode, setSelectedEpisode] = useState<ProjectEpisode | null>(null);
+  const [selectedEpisode, setSelectedEpisode] = useState<ProjectEpisode | null>(
+    null,
+  );
   const videoModalRef = useRef<HTMLVideoElement | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [videoError, setVideoError] = useState(false);
@@ -223,7 +225,10 @@ export default function ProjectDetailsPage({
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
       if (tabParam && tabs.includes(tabParam)) {
-        if ((tabParam === "Inventory" || tabParam === "PDF") && !tokenStorage.isValid()) {
+        if (
+          (tabParam === "Inventory" || tabParam === "PDF") &&
+          !tokenStorage.isValid()
+        ) {
           setShowAuthModal(true);
         } else {
           setActiveTab(tabParam);
@@ -455,7 +460,12 @@ export default function ProjectDetailsPage({
 
       fetchRelated();
     }
-  }, [activeTab, project?.developer, resolvedParams?.id, relatedProjects.length]);
+  }, [
+    activeTab,
+    project?.developer,
+    resolvedParams?.id,
+    relatedProjects.length,
+  ]);
 
   // Update indicator position
   useEffect(() => {
@@ -922,11 +932,17 @@ export default function ProjectDetailsPage({
 
             {activeTab === "Inventory" && (
               <div className="py-10 md:py-12 flex justify-center">
-                {inventory.length > 0 && (inventory[0]?.inventoryUrl || inventory[0]?.fileUrl) ? (
+                {inventory.length > 0 &&
+                (inventory[0]?.inventoryUrl || inventory[0]?.fileUrl) ? (
                   <button
                     onClick={() =>
                       requireAuth(() => {
-                        window.open(getFileUrl(inventory[0].inventoryUrl || inventory[0].fileUrl), "_blank");
+                        window.open(
+                          getFileUrl(
+                            inventory[0].inventoryUrl || inventory[0].fileUrl,
+                          ),
+                          "_blank",
+                        );
                       })
                     }
                     className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-green-600 hover:bg-green-700 transition-colors text-white font-semibold shadow-lg shadow-green-600/20"

@@ -1,7 +1,7 @@
-import type { IDeveloper } from './developer.types';
-import type { IEpisode } from './episodes.types';
-import type { IReel } from './reels.types';
-import type { IInventory, IPdf } from './files.types';
+import type { IDeveloper } from "./developer.types";
+import type { IEpisode } from "./episodes.types";
+import type { IReel } from "./reels.types";
+import type { IInventory, IPdf } from "./files.types";
 
 // ==========================================
 // 📥 Request Payloads
@@ -57,14 +57,19 @@ export interface QueryProjectsParams {
   slug?: string;
   limit?: number;
   page?: number;
-  sortBy?: 'newest' | 'trending' | 'saveCount' | 'viewCount' | string;
+  sortBy?: "newest" | "trending" | "saveCount" | "viewCount" | string;
 }
 
 // ==========================================
 // 🗄️ Data Interface
 // ==========================================
 
-export type ProjectStatus = 'PLANNING' | 'CONSTRUCTION' | 'COMPLETED' | 'DELIVERED' | string;
+export type ProjectStatus =
+  | "PLANNING"
+  | "CONSTRUCTION"
+  | "COMPLETED"
+  | "DELIVERED"
+  | string;
 
 export interface ProjectDeveloperRef {
   _id: string;
@@ -110,11 +115,14 @@ export interface IProject {
   logoUrl?: string;
   location: string;
   status: ProjectStatus;
-  developer: string | {
-    _id: string;
-    name: string;
-    logoUrl?: string;
-  } | IDeveloper;
+  developer:
+    | string
+    | {
+        _id: string;
+        name: string;
+        logoUrl?: string;
+      }
+    | IDeveloper;
   script: string;
   episodes?: Array<IEpisode>;
   reels?: Array<IReel>;
