@@ -70,8 +70,39 @@ export async function login(
   payload: LoginPayload,
 ): Promise<AuthTokensResponse> {
   try {
-    const response = await httpClient.post<AuthTokensResponse>(
+    const response = await httpClient.post<any>(
       "/auth/login",
+      payload,
+      { skipAuthRefresh: true },
+    );
+    const data = response.data?.data || response.data;
+    const accessToken = data?.accessToken || data?.token || response.data?.accessToken || response.data?.token;
+    const refreshToken = data?.refreshToken || response.data?.refreshToken || accessToken;
+    
+    if (accessToken) {
+      tokenStorage.setTokens(
+        accessToken,
+        refreshToken || accessToken,
+      );
+    }
+    return data || response.data;
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, "Login failed"));
+  }
+}
+
+// Apple Login — POST /auth/apple-login (matching backend contract)
+export async function loginWithApple(payload: {
+  identityToken: string;
+  userIdentifier?: string;
+  authorizationCode?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}): Promise<AuthTokensResponse> {
+  try {
+    const response = await httpClient.post<AuthTokensResponse>(
+      "/auth/apple-login",
       payload,
       { skipAuthRefresh: true },
     );
@@ -81,10 +112,9 @@ export async function login(
         response.data.refreshToken,
       );
     }
-    console.log("Login response:", response.data);
     return response.data;
   } catch (error) {
-    throw new Error(extractErrorMessage(error, "Login failed"));
+    throw new Error(extractErrorMessage(error, "Apple authentication failed"));
   }
 }
 
@@ -179,6 +209,7 @@ export const authApi = {
   verifyEmail,
   resendVerification,
   login,
+  loginWithApple,
   signOut,
   logout,
   forgotPassword,

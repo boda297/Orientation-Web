@@ -86,6 +86,35 @@ const fileFilter = (req, file, cb) => {
 - Accept the `role` property in `CreateUserDto` / schema validation.
 - Assign the passed `role` (or default to `'user'` if not provided).
 
+## 4. 🍏 Sign in with Apple (`POST /auth/apple-login`) & Social Auth
+
+### 🔍 Endpoint Details:
+- The Web App & Flutter App send Apple authentication credentials to `POST /auth/apple-login`.
+- **Request Body**:
+```json
+{
+  "identityToken": "eyJraWQiOiJ...",
+  "userIdentifier": "001234.abcdef...",
+  "authorizationCode": "c123456...",
+  "email": "user@privaterelay.appleid.com",
+  "firstName": "John",
+  "lastName": "Doe"
+}
+```
+- **Response**:
+```json
+{
+  "accessToken": "eyJhbGci...",
+  "refreshToken": "eyJhbGci...",
+  "user": {
+    "id": "60d0fe4f5311236168a109ca",
+    "email": "user@privaterelay.appleid.com",
+    "username": "John Doe",
+    "role": "user"
+  }
+}
+```
+
 ---
 ---
 
@@ -147,6 +176,37 @@ const projects = await Project.find({
 
 ### 💡 المطلوب من الباك إند:
 - استقبال حقل `role` في الـ Controller والـ Validation Schema وتخزينه مع بيانات المستخدم المنشأ.
+
+---
+
+## 4. 🍏 تسجيل الدخول بحساب آبل (`POST /auth/apple-login`)
+
+### 🔍 تفاصيل التحديث:
+- تم تجهيز زر وتسجيل الدخول بـ Apple بالكامل في الويب ليتطابق تماماً مع تطبيق فلاتر (Flutter).
+- الـ Request المرسل:
+```json
+{
+  "identityToken": "eyJraWQiOiJ...",
+  "userIdentifier": "001234.abcdef...",
+  "authorizationCode": "c123456...",
+  "email": "user@privaterelay.appleid.com",
+  "firstName": "John",
+  "lastName": "Doe"
+}
+```
+- الـ Response المتوقع:
+```json
+{
+  "accessToken": "eyJhbGci...",
+  "refreshToken": "eyJhbGci...",
+  "user": {
+    "id": "60d0fe4f5311236168a109ca",
+    "email": "user@privaterelay.appleid.com",
+    "username": "John Doe",
+    "role": "user"
+  }
+}
+```
 
 ---
 *تم إنشاء هذا الملف ليكون مرجعاً سريعاً وواضحاً لفريق التطوير.*

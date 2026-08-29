@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ChatWidget from "@/components/ChatWidget";
+import SecureVideoPlayer from "@/components/SecureVideoPlayer";
 import { projectsApi } from "@/lib/api/projects.api";
 import { inventoryApi } from "@/lib/api/files.api";
 import { getFileUrl } from "@/lib/http/url";
@@ -38,27 +39,26 @@ export default function ProjectDetailsPage({
     null,
   );
   const videoModalRef = useRef<HTMLVideoElement | null>(null);
+  const lastPlaybackProgressRef = useRef<{ currentTime: number; duration: number }>({ currentTime: 0, duration: 0 });
   const [isSaved, setIsSaved] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [videoCanPlay, setVideoCanPlay] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const heroVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Closes the episode video modal and sends the watch progress to the backend (0 requests during playback/pause)
+  // Closes the episode video modal and sends the watch progress to the backend
   const handleCloseVideoModal = () => {
     if (selectedEpisode) {
-      const video = videoModalRef.current;
-      const currentTime = video ? video.currentTime : 0;
-      const duration = video ? video.duration || 0 : 0;
+      const { currentTime, duration } = lastPlaybackProgressRef.current;
       const isCompleted = duration > 0 && currentTime / duration >= 0.95;
 
       if (isCompleted) {
         // Video finished: remove from localStorage and mark as complete
         removeWatchProgress(selectedEpisode._id);
         if (tokenStorage.isValid() && selectedEpisode._id) {
-          watchHistoryApi.markCompleted(selectedEpisode._id).catch(() => {});
+          watchHistoryApi.markCompleted(selectedEpisode._id).catch(() => { });
         }
-      } else {
+      } else if (currentTime > 1 && duration > 0) {
         saveWatchProgress(
           {
             episodeId: selectedEpisode._id,
@@ -74,14 +74,11 @@ export default function ProjectDetailsPage({
             duration,
             timestamp: Date.now(),
           },
-          true, // Send HTTP request to backend ONLY when the video is closed
+          true, // Send HTTP request to backend when closed
         );
       }
-
-      if (video) {
-        video.pause();
-      }
     }
+    lastPlaybackProgressRef.current = { currentTime: 0, duration: 0 };
     setSelectedEpisode(null);
   };
 
@@ -130,7 +127,7 @@ export default function ProjectDetailsPage({
         localStorage.setItem("savedProjects", JSON.stringify(updatedIds));
         setIsSaved(false);
         if (tokenStorage.isValid()) {
-          projectsApi.unsave(project._id).catch(() => {});
+          projectsApi.unsave(project._id).catch(() => { });
         }
       } else {
         // Add to saved
@@ -138,7 +135,7 @@ export default function ProjectDetailsPage({
         localStorage.setItem("savedProjects", JSON.stringify(updatedIds));
         setIsSaved(true);
         if (tokenStorage.isValid()) {
-          projectsApi.save(project._id).catch(() => {});
+          projectsApi.save(project._id).catch(() => { });
         }
       }
     });
@@ -235,6 +232,11 @@ export default function ProjectDetailsPage({
         }
       }
       const episodeParam = params.get("episode");
+      const timeParam = params.get("time");
+      if (timeParam) {
+        setAutoPlayTime(parseInt(timeParam));
+      }
+
       if (episodeParam) {
         setAutoPlayEpisodeId(episodeParam);
 
@@ -244,9 +246,9 @@ export default function ProjectDetailsPage({
             localStorage.getItem("watchHistory") || "[]",
           );
           const cached = history.find(
-            (h: any) => h.episodeId === episodeParam && h.episodeUrl,
+            (h: any) => (h.episodeId === episodeParam || h._id === episodeParam) && h.episodeUrl,
           );
-          if (cached && tokenStorage.isValid()) {
+          if (cached) {
             setSelectedEpisode({
               _id: cached.episodeId,
               title: cached.episodeTitle,
@@ -258,14 +260,10 @@ export default function ProjectDetailsPage({
           // ignore
         }
       }
-      const timeParam = params.get("time");
-      if (timeParam) {
-        setAutoPlayTime(parseInt(timeParam));
-      }
     }
   }, []);
 
-  // Auto-open episode from Continue Watching
+  // Auto-open episode from Continue Watching when project data arrives
   useEffect(() => {
     if (
       autoPlayEpisodeId &&
@@ -274,21 +272,10 @@ export default function ProjectDetailsPage({
       project.episodes.length > 0
     ) {
       const episode = project.episodes.find(
-        (ep) => ep._id === autoPlayEpisodeId,
+        (ep) => ep._id === autoPlayEpisodeId || (ep as any).id === autoPlayEpisodeId,
       );
       if (episode && episode.episodeUrl) {
         setSelectedEpisode(episode);
-        setAutoPlayEpisodeId(null); // Clear so it doesn't re-trigger
-        // Play video after modal opens
-        setTimeout(() => {
-          if (videoModalRef.current) {
-            if (autoPlayTime) {
-              videoModalRef.current.currentTime = autoPlayTime;
-              setAutoPlayTime(null);
-            }
-            videoModalRef.current.play().catch(() => {});
-          }
-        }, 300);
       }
     }
   }, [autoPlayEpisodeId, project?.episodes]);
@@ -312,6 +299,26 @@ export default function ProjectDetailsPage({
 
       return () => clearTimeout(playTimeout);
     }
+  }, [project?.heroVideoUrl, isHeroImage, videoError]);
+
+  // Pause hero video when scrolled out of view (save bandwidth)
+  useEffect(() => {
+    const video = heroVideoRef.current;
+    if (!video) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    observer.observe(video);
+    return () => observer.disconnect();
   }, [project?.heroVideoUrl, isHeroImage, videoError]);
 
   // Fetch project data
@@ -593,8 +600,8 @@ export default function ProjectDetailsPage({
                 backgroundImage: isHeroImage && project?.heroVideoUrl
                   ? `url(${getFileUrl(project.heroVideoUrl)})`
                   : project?.projectThumbnailUrl
-                  ? `url(${getFileUrl(project.projectThumbnailUrl)})`
-                  : "none",
+                    ? `url(${getFileUrl(project.projectThumbnailUrl)})`
+                    : "none",
                 backgroundColor: "#000",
               }}
             />
@@ -702,11 +709,10 @@ export default function ProjectDetailsPage({
               <div className="flex items-center gap-2 md:gap-4 flex-wrap">
                 <button
                   onClick={toggleSave}
-                  className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors ${
-                    isSaved
+                  className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors ${isSaved
                       ? "bg-red-600 hover:bg-red-700"
                       : "bg-gray-800 hover:bg-gray-700"
-                  }`}
+                    }`}
                 >
                   <svg
                     className={`w-5 h-5 md:w-6 md:h-6 ${isSaved ? "text-white" : "text-white"}`}
@@ -807,11 +813,10 @@ export default function ProjectDetailsPage({
                     tabsRef.current[index] = el;
                   }}
                   onClick={() => handleTabClick(tab, index)}
-                  className={`py-4 px-2 text-sm md:text-base font-semibold whitespace-nowrap transition-colors duration-300 ${
-                    activeTab === tab
+                  className={`py-4 px-2 text-sm md:text-base font-semibold whitespace-nowrap transition-colors duration-300 ${activeTab === tab
                       ? "text-red-600"
                       : "text-gray-400 hover:text-gray-300"
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>
@@ -875,8 +880,8 @@ export default function ProjectDetailsPage({
             {activeTab === "Episodes" && (
               <div className="space-y-4">
                 {project?.episodes &&
-                Array.isArray(project.episodes) &&
-                project.episodes.length > 0 ? (
+                  Array.isArray(project.episodes) &&
+                  project.episodes.length > 0 ? (
                   project.episodes.map((episode) => (
                     <button
                       key={episode._id}
@@ -886,7 +891,7 @@ export default function ProjectDetailsPage({
                           // Play video after modal opens
                           setTimeout(() => {
                             if (videoModalRef.current) {
-                              videoModalRef.current.play().catch(() => {});
+                              videoModalRef.current.play().catch(() => { });
                             }
                           }, 100);
                         });
@@ -1050,8 +1055,8 @@ export default function ProjectDetailsPage({
             {activeTab === "Reels" && (
               <div className="space-y-4">
                 {project?.reels &&
-                Array.isArray(project.reels) &&
-                project.reels.length > 0 ? (
+                  Array.isArray(project.reels) &&
+                  project.reels.length > 0 ? (
                   project.reels.map((reel) => (
                     <div
                       key={reel._id}
@@ -1129,54 +1134,39 @@ export default function ProjectDetailsPage({
         </div>
       </main>
 
-      {/* Video Modal */}
+      {/* Video Modal with SecureVideoPlayer */}
       {selectedEpisode && selectedEpisode.episodeUrl && (
         <div
           className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
           onClick={handleCloseVideoModal}
         >
           <div
-            className="relative w-full max-w-5xl"
+            className="relative w-full max-w-6xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
-            <button
-              onClick={handleCloseVideoModal}
-              className="absolute -top-12 right-0 w-10 h-10 bg-gray-800 hover:bg-gray-700 rounded-full flex items-center justify-center transition-colors z-10"
-            >
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-
-            {/* Video Player */}
-            <video
-              ref={videoModalRef}
+            <SecureVideoPlayer
               src={getFileUrl(selectedEpisode.episodeUrl)}
-              controls
+              poster={
+                selectedEpisode.thumbnail
+                  ? getFileUrl(selectedEpisode.thumbnail)
+                  : project?.projectThumbnailUrl
+                    ? getFileUrl(project.projectThumbnailUrl)
+                    : undefined
+              }
+              title={
+                selectedEpisode.title ||
+                `Episode ${selectedEpisode.episodeOrder || ""}`
+              }
               autoPlay
-              className="w-full h-auto rounded-lg"
+              startTime={autoPlayTime || 0}
+              onClose={handleCloseVideoModal}
               onEnded={() => {
                 if (selectedEpisode) {
-                  // 1. Remove from localStorage
                   removeWatchProgress(selectedEpisode._id);
-
-                  // 2. Send complete request to backend
                   if (tokenStorage.isValid() && selectedEpisode._id) {
                     watchHistoryApi
                       .markCompleted(selectedEpisode._id)
                       .catch(() => {
-                        // Fallback to updateProgress with 100% completed
                         watchHistoryApi
                           .updateProgress({
                             projectId: resolvedParams.id,
@@ -1190,26 +1180,21 @@ export default function ProjectDetailsPage({
                               project?.projectThumbnailUrl ||
                               "",
                             episodeUrl: selectedEpisode.episodeUrl,
-                            currentTime: Math.floor(
-                              videoModalRef.current?.duration || 1,
-                            ),
-                            duration: Math.max(
-                              1,
-                              Math.floor(videoModalRef.current?.duration || 1),
-                            ),
+                            currentTime: 999999,
+                            duration: 999999,
                             contentType: "episode",
                           })
                           .catch(() => {});
                       });
                   }
                 }
+                lastPlaybackProgressRef.current = { currentTime: 0, duration: 0 };
               }}
-              onTimeUpdate={(e) => {
-                const video = e.currentTarget;
-                // Save progress locally every 5s (0 network requests)
+              onTimeUpdate={(currentTime, duration) => {
+                lastPlaybackProgressRef.current = { currentTime, duration };
                 if (
-                  Math.floor(video.currentTime) % 5 === 0 &&
-                  video.currentTime > 0
+                  Math.floor(currentTime) % 3 === 0 &&
+                  currentTime > 0
                 ) {
                   saveWatchProgress(
                     {
@@ -1224,47 +1209,48 @@ export default function ProjectDetailsPage({
                         project?.projectThumbnailUrl ||
                         "",
                       episodeUrl: selectedEpisode.episodeUrl,
-                      currentTime: video.currentTime,
-                      duration: video.duration || 0,
+                      currentTime,
+                      duration,
                       timestamp: Date.now(),
                     },
-                    false, // False: 0 network requests during playback
+                    false,
                   );
                 }
               }}
-              onPause={(e) => {
-                const video = e.currentTarget;
-                // Save progress locally on pause (0 network requests to backend)
-                saveWatchProgress(
-                  {
-                    episodeId: selectedEpisode._id,
-                    projectId: resolvedParams.id,
-                    projectTitle: project?.title || "",
-                    episodeTitle:
-                      selectedEpisode.title ||
-                      `Episode ${selectedEpisode.episodeOrder || ""}`,
-                    thumbnail:
-                      selectedEpisode.thumbnail ||
-                      project?.projectThumbnailUrl ||
-                      "",
-                    episodeUrl: selectedEpisode.episodeUrl,
-                    currentTime: video.currentTime,
-                    duration: video.duration || 0,
-                    timestamp: Date.now(),
-                  },
-                  false, // False: 0 network requests on pause
-                );
+              onPause={(currentTime, duration) => {
+                lastPlaybackProgressRef.current = { currentTime, duration };
+                if (currentTime > 0 && duration > 0) {
+                  saveWatchProgress(
+                    {
+                      episodeId: selectedEpisode._id,
+                      projectId: resolvedParams.id,
+                      projectTitle: project?.title || "",
+                      episodeTitle:
+                        selectedEpisode.title ||
+                        `Episode ${selectedEpisode.episodeOrder || ""}`,
+                      thumbnail:
+                        selectedEpisode.thumbnail ||
+                        project?.projectThumbnailUrl ||
+                        "",
+                      episodeUrl: selectedEpisode.episodeUrl,
+                      currentTime,
+                      duration,
+                      timestamp: Date.now(),
+                    },
+                    true,
+                  );
+                }
               }}
             />
 
-            {/* Episode Title */}
-            <div className="mt-4 text-center">
-              <h3 className="text-xl font-bold text-white">
+            {/* Episode Info */}
+            <div className="mt-3 text-center">
+              <h3 className="text-lg font-bold text-white">
                 {selectedEpisode.title ||
                   `Episode ${selectedEpisode.episodeOrder || ""}`}
               </h3>
               {selectedEpisode.duration && (
-                <p className="text-gray-400 mt-1">
+                <p className="text-gray-400 text-sm mt-1">
                   {formatDuration(selectedEpisode.duration)}
                 </p>
               )}
