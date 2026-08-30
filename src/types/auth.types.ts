@@ -56,6 +56,23 @@ export interface SocialAuthPayload {
   };
 }
 
+export interface GoogleMobileAuthPayload {
+  idToken: string;
+}
+
+export interface AppleMobileAuthPayload {
+  identityToken: string;
+  email?: string;
+  name?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  firstName?: string;
+  lastName?: string;
+  userIdentifier?: string;
+  authorizationCode?: string;
+}
+
 export interface AppleAuthResponse {
   authorization: {
     code: string;

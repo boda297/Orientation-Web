@@ -1,42 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { authApi } from "@/lib/api/auth.api";
-import { tokenStorage } from "@/lib/http/tokenStorage";
-
-// Apple ID JS global interface
-declare global {
-  interface Window {
-    AppleID?: {
-      auth: {
-        init: (config: {
-          clientId: string;
-          scope: string;
-          redirectURI: string;
-          state?: string;
-          nonce?: string;
-          usePopup?: boolean;
-        }) => void;
-        signIn: () => Promise<{
-          authorization: {
-            code: string;
-            id_token: string;
-            state?: string;
-          };
-          user?: {
-            name?: {
-              firstName?: string;
-              lastName?: string;
-            };
-            email?: string;
-          };
-        }>;
-      };
-    };
-  }
-}
+import { getApiUrl } from "@/lib/http/url";
 
 interface SocialAuthButtonsProps {
   onSuccess?: () => void;
@@ -49,147 +15,44 @@ export default function SocialAuthButtons({
   onError,
   actionText = "signin",
 }: SocialAuthButtonsProps) {
-  const router = useRouter();
   const [loadingProvider, setLoadingProvider] = useState<"apple" | "google" | "facebook" | null>(null);
-  const [appleSdkLoaded, setAppleSdkLoaded] = useState(false);
 
-  // Load Apple Sign-In JS SDK
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (window.AppleID) {
-      setAppleSdkLoaded(true);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js";
-    script.async = true;
-    script.onload = () => {
-      setAppleSdkLoaded(true);
-      try {
-        const clientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || "com.mohamedlotfy.orientationapp.web";
-        const redirectURI =
-          process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI ||
-          (typeof window !== "undefined" ? `${window.location.origin}/auth/apple/callback` : "http://localhost:3000");
-
-        window.AppleID?.auth.init({
-          clientId,
-          scope: "name email",
-          redirectURI,
-          usePopup: true,
-        });
-      } catch (err) {
-        console.warn("AppleID init note:", err);
-      }
-    };
-    document.body.appendChild(script);
-
-    return () => {
-      // clean up script on unmount if needed
-    };
-  }, []);
-
-  // 🍏 Handle Sign in with Apple
-  const handleAppleSignIn = async () => {
+  // 🍏 Handle Sign in with Apple (Redirect to Backend OAuth Endpoint)
+  const handleAppleSignIn = () => {
     setLoadingProvider("apple");
     try {
-      if (typeof window === "undefined" || !window.AppleID) {
-        throw new Error("Apple Sign In SDK is still loading. Please try again.");
-      }
-
-      // 1. Initialize with config
-      const clientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || "com.mohamedlotfy.orientationapp.web";
-      const redirectURI =
-        process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || `${window.location.origin}/auth/apple/callback`;
-
-      window.AppleID.auth.init({
-        clientId,
-        scope: "name email",
-        redirectURI,
-        usePopup: true,
-      });
-
-      // 2. Prompt Apple sign-in popup
-      const data = await window.AppleID.auth.signIn();
-
-      if (!data?.authorization?.id_token) {
-        throw new Error("Failed to receive authentication token from Apple.");
-      }
-
-      // 3. Send payload matching the backend contract
-      const res = await authApi.loginWithApple({
-        identityToken: data.authorization.id_token,
-        userIdentifier: data.authorization.code || "",
-        authorizationCode: data.authorization.code,
-        email: data.user?.email,
-        firstName: data.user?.name?.firstName,
-        lastName: data.user?.name?.lastName,
-      });
-
-      if (res?.accessToken) {
-        tokenStorage.setTokens(res.accessToken, res.refreshToken);
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          router.push("/");
-          router.refresh();
-        }
-      }
+      window.location.href = getApiUrl("/auth/apple/login");
     } catch (err: any) {
-      console.warn("Apple Sign-In note:", err);
-      
-      let errMsg = "Apple Sign-In failed. Please try again.";
-      if (err?.error === "popup_closed_by_user") {
-        errMsg = "Apple Sign-In was cancelled.";
-      } else if (typeof window !== "undefined" && window.location.hostname === "localhost") {
-        errMsg = "Apple Sign-In strictly requires the registered live domain (https://orientationapps.com) or an HTTPS tunnel, as Apple blocks localhost requests.";
-      } else if (err?.message) {
-        errMsg = err.message;
-      }
-      
-      if (onError) onError(errMsg);
-    } finally {
       setLoadingProvider(null);
+      if (onError) onError(err.message || "Failed to initialize Apple sign-in.");
     }
   };
 
-  // 🔍 Handle Google Sign In (Prepared for backend / client ID)
-  const handleGoogleSignIn = async () => {
+  // 🔍 Handle Google Sign In (Redirect to Backend OAuth Endpoint)
+  const handleGoogleSignIn = () => {
     setLoadingProvider("google");
     try {
-      // When Google Client ID is configured, this triggers Google OAuth
-      const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      if (!googleClientId) {
-        // Ready state notification
-        throw new Error("Google Login design ready. Awaiting Google Client ID from backend.");
-      }
-      // Placeholder for standard OAuth redirect or Google One-Tap
-      const redirectUri = encodeURIComponent(`${window.location.origin}/auth/google/callback`);
-      const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${redirectUri}&response_type=token%20id_token&scope=openid%20email%20profile`;
-      window.location.href = googleAuthUrl;
+      window.location.href = getApiUrl("/auth/google/login");
     } catch (err: any) {
-      if (onError) onError(err.message || "Google login failed.");
-    } finally {
       setLoadingProvider(null);
+      if (onError) onError(err.message || "Failed to initialize Google sign-in.");
     }
   };
 
   // 📘 Handle Facebook Sign In (Prepared for backend / App ID)
-  const handleFacebookSignIn = async () => {
+  const handleFacebookSignIn = () => {
     setLoadingProvider("facebook");
     try {
       const fbAppId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID;
       if (!fbAppId) {
-        throw new Error("Facebook Login design ready. Awaiting Facebook App ID from backend.");
+        throw new Error("Facebook Login is not configured yet.");
       }
       const redirectUri = encodeURIComponent(`${window.location.origin}/auth/facebook/callback`);
       const fbAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${fbAppId}&redirect_uri=${redirectUri}&scope=email,public_profile`;
       window.location.href = fbAuthUrl;
     } catch (err: any) {
-      if (onError) onError(err.message || "Facebook login failed.");
-    } finally {
       setLoadingProvider(null);
+      if (onError) onError(err.message || "Facebook login failed.");
     }
   };
 
@@ -260,7 +123,7 @@ export default function SocialAuthButtons({
         )}
       </button>
 
-      {/* 📘 Facebook Button (Official Guidelines: Dark base with Official Meta/FB Icon) */}
+      {/* 📘 Facebook Button (Commented out)
       <button
         type="button"
         onClick={handleFacebookSignIn}
@@ -271,7 +134,6 @@ export default function SocialAuthButtons({
           <Loader2 className="w-5 h-5 animate-spin text-white" />
         ) : (
           <>
-            {/* Official Facebook SVG Logo */}
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#1877F2">
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
             </svg>
@@ -281,6 +143,7 @@ export default function SocialAuthButtons({
           </>
         )}
       </button>
+      */}
     </div>
   );
 }

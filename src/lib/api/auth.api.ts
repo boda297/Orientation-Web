@@ -1,6 +1,7 @@
 import { httpClient } from "../http/httpClient";
 import { extractErrorMessage } from "../http/apiError";
 import { tokenStorage } from "../http/tokenStorage";
+import { getApiUrl } from "../http/url";
 import type {
   RegisterPayload,
   RegisterResponse,
@@ -91,30 +92,25 @@ export async function login(
   }
 }
 
-// Apple Login — POST /auth/apple-login (matching backend contract)
-export async function loginWithApple(payload: {
-  identityToken: string;
-  userIdentifier?: string;
-  authorizationCode?: string;
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-}): Promise<AuthTokensResponse> {
-  try {
-    const response = await httpClient.post<AuthTokensResponse>(
-      "/auth/apple-login",
-      payload,
-      { skipAuthRefresh: true },
-    );
-    if (response.data?.accessToken && response.data?.refreshToken) {
-      tokenStorage.setTokens(
-        response.data.accessToken,
-        response.data.refreshToken,
-      );
-    }
-    return response.data;
-  } catch (error) {
-    throw new Error(extractErrorMessage(error, "Apple authentication failed"));
+// 🌐 Google Web OAuth Login — Redirects to /auth/google/login
+export function getGoogleLoginUrl(): string {
+  return getApiUrl("/auth/google/login");
+}
+
+export function loginWithGoogle(): void {
+  if (typeof window !== "undefined") {
+    window.location.href = getGoogleLoginUrl();
+  }
+}
+
+// 🌐 Apple Web OAuth Login — Redirects to /auth/apple/login
+export function getAppleLoginUrl(): string {
+  return getApiUrl("/auth/apple/login");
+}
+
+export function loginWithApple(): void {
+  if (typeof window !== "undefined") {
+    window.location.href = getAppleLoginUrl();
   }
 }
 
@@ -209,7 +205,10 @@ export const authApi = {
   verifyEmail,
   resendVerification,
   login,
+  loginWithGoogle,
+  getGoogleLoginUrl,
   loginWithApple,
+  getAppleLoginUrl,
   signOut,
   logout,
   forgotPassword,
@@ -217,4 +216,3 @@ export const authApi = {
   resetPassword,
   refreshToken: refreshAuthToken,
 };
-

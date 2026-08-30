@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { tokenStorage } from "@/lib/http/tokenStorage";
 
-function AppleCallbackContent() {
+function GoogleCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +33,7 @@ function AppleCallbackContent() {
         setError(errorMsg);
       }
     } catch (err: any) {
-      setError(err.message || "Failed to complete Apple sign-in.");
+      setError(err.message || "Failed to complete Google sign-in.");
     }
   }, [searchParams, router]);
 
@@ -47,14 +47,14 @@ function AppleCallbackContent() {
       ) : (
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-white" />
-          <p className="text-gray-400 text-sm">Completing Apple sign-in...</p>
+          <p className="text-gray-400 text-sm">Completing Google sign-in...</p>
         </div>
       )}
     </div>
   );
 }
 
-export default function AppleCallbackPage() {
+export default function GoogleCallbackPage() {
   return (
     <Suspense
       fallback={
@@ -63,7 +63,7 @@ export default function AppleCallbackPage() {
         </div>
       }
     >
-      <AppleCallbackContent />
+      <GoogleCallbackContent />
     </Suspense>
   );
 }
