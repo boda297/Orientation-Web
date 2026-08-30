@@ -84,6 +84,9 @@ export default function ProjectDetailsPage({
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isModalClosing, setIsModalClosing] = useState(false);
+  const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+  const [isSubscribeModalClosing, setIsSubscribeModalClosing] = useState(false);
+  const [lockedItemName, setLockedItemName] = useState("");
   const [hasMounted, setHasMounted] = useState(false);
   const router = useRouter();
 
@@ -98,6 +101,57 @@ export default function ProjectDetailsPage({
       setShowAuthModal(true);
     } else {
       action();
+    }
+  };
+
+  // Unified click handler for all locked media (Episodes, Inventory, PDF, Reels)
+  const handleItemClick = (
+    item: any,
+    type: "Episode" | "Inventory" | "Brochure" | "PDF" | "Reel",
+  ) => {
+    if (!hasMounted) return;
+
+    // 1. Guest user check -> Show Login Required Modal
+    if (!tokenStorage.isValid()) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    // 2. Unsubscribed user check -> Show Subscribe Modal
+    const isLocked = !project?.hasAccess || !!item?.locked;
+    if (isLocked) {
+      const itemTitle =
+        item?.title ||
+        item?.fileName ||
+        (type === "Episode" ? `Episode ${item?.episodeOrder || ""}` : type);
+      setLockedItemName(`${type}: "${itemTitle}"`);
+      setShowSubscribeModal(true);
+      return;
+    }
+
+    // 3. User has access: open or play content
+    if (type === "Episode") {
+      setSelectedEpisode(item);
+      setTimeout(() => {
+        if (videoModalRef.current) {
+          videoModalRef.current.play().catch(() => {});
+        }
+      }, 100);
+    } else if (type === "Inventory") {
+      const url = item?.inventoryUrl || item?.fileUrl;
+      if (url) {
+        window.open(getFileUrl(url), "_blank");
+      }
+    } else if (type === "PDF" || type === "Brochure") {
+      const url = item?.pdfUrl || item?.fileUrl;
+      if (url) {
+        window.open(getFileUrl(url), "_blank");
+      }
+    } else if (type === "Reel") {
+      const url = item?.fileUrl || item?.reelUrl || item?.videoUrl;
+      if (url) {
+        window.open(getFileUrl(url), "_blank");
+      }
     }
   };
 
@@ -222,14 +276,7 @@ export default function ProjectDetailsPage({
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
       if (tabParam && tabs.includes(tabParam)) {
-        if (
-          (tabParam === "Inventory" || tabParam === "PDF") &&
-          !tokenStorage.isValid()
-        ) {
-          setShowAuthModal(true);
-        } else {
-          setActiveTab(tabParam);
-        }
+        setActiveTab(tabParam);
       }
       const episodeParam = params.get("episode");
       const timeParam = params.get("time");
@@ -241,23 +288,27 @@ export default function ProjectDetailsPage({
         setAutoPlayEpisodeId(episodeParam);
 
         // Pre-cached instant episode playback from local watchHistory
-        try {
-          const history = JSON.parse(
-            localStorage.getItem("watchHistory") || "[]",
-          );
-          const cached = history.find(
-            (h: any) => (h.episodeId === episodeParam || h._id === episodeParam) && h.episodeUrl,
-          );
-          if (cached) {
-            setSelectedEpisode({
-              _id: cached.episodeId,
-              title: cached.episodeTitle,
-              thumbnail: cached.thumbnail,
-              episodeUrl: cached.episodeUrl,
-            });
+        if (tokenStorage.isValid()) {
+          try {
+            const history = JSON.parse(
+              localStorage.getItem("watchHistory") || "[]",
+            );
+            const cached = history.find(
+              (h: any) =>
+                (h.episodeId === episodeParam || h._id === episodeParam) &&
+                h.episodeUrl,
+            );
+            if (cached) {
+              setSelectedEpisode({
+                _id: cached.episodeId,
+                title: cached.episodeTitle,
+                thumbnail: cached.thumbnail,
+                episodeUrl: cached.episodeUrl,
+              });
+            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
         }
       }
     }
@@ -272,13 +323,23 @@ export default function ProjectDetailsPage({
       project.episodes.length > 0
     ) {
       const episode = project.episodes.find(
-        (ep) => ep._id === autoPlayEpisodeId || (ep as any).id === autoPlayEpisodeId,
+        (ep) =>
+          ep._id === autoPlayEpisodeId || (ep as any).id === autoPlayEpisodeId,
       );
-      if (episode && episode.episodeUrl) {
-        setSelectedEpisode(episode);
+      if (episode) {
+        if (!tokenStorage.isValid()) {
+          setShowAuthModal(true);
+        } else if (!project.hasAccess || episode.locked) {
+          setLockedItemName(
+            `Episode: "${episode.title || `Episode ${episode.episodeOrder || ""}`}"`,
+          );
+          setShowSubscribeModal(true);
+        } else if (episode.episodeUrl) {
+          setSelectedEpisode(episode);
+        }
       }
     }
-  }, [autoPlayEpisodeId, project?.episodes]);
+  }, [autoPlayEpisodeId, project]);
 
   const isHeroImage = !!project?.heroVideoUrl && /\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i.test(project.heroVideoUrl);
 
@@ -505,18 +566,6 @@ export default function ProjectDetailsPage({
   }, [activeTab]);
 
   const handleTabClick = (tab: string, index: number) => {
-    if (tab === "Inventory" || tab === "PDF") {
-      requireAuth(() => {
-        setActiveTab(tab);
-        tabsRef.current[index]?.scrollIntoView({
-          behavior: "smooth",
-          inline: "center",
-          block: "nearest",
-        });
-      });
-      return;
-    }
-
     setActiveTab(tab);
     tabsRef.current[index]?.scrollIntoView({
       behavior: "smooth",
@@ -806,21 +855,33 @@ export default function ProjectDetailsPage({
                 }}
               />
 
-              {tabs.map((tab, index) => (
-                <button
-                  key={tab}
-                  ref={(el) => {
-                    tabsRef.current[index] = el;
-                  }}
-                  onClick={() => handleTabClick(tab, index)}
-                  className={`py-4 px-2 text-sm md:text-base font-semibold whitespace-nowrap transition-colors duration-300 ${activeTab === tab
-                      ? "text-red-600"
-                      : "text-gray-400 hover:text-gray-300"
+              {tabs.map((tab, index) => {
+                const getTabLabel = (t: string) => {
+                  if (t === "Episodes")
+                    return `Episodes (${project?.episodes?.length || 0})`;
+                  if (t === "Reels")
+                    return `Reels (${project?.reels?.length || 0})`;
+                  if (t === "PDF")
+                    return `PDF (${pdfs?.length || (Array.isArray(project?.pdf) ? project.pdf.length : 0)})`;
+                  return t;
+                };
+                return (
+                  <button
+                    key={tab}
+                    ref={(el) => {
+                      tabsRef.current[index] = el;
+                    }}
+                    onClick={() => handleTabClick(tab, index)}
+                    className={`py-4 px-2 text-sm md:text-base font-semibold whitespace-nowrap transition-colors duration-300 ${
+                      activeTab === tab
+                        ? "text-red-600"
+                        : "text-gray-400 hover:text-gray-300"
                     }`}
-                >
-                  {tab}
-                </button>
-              ))}
+                  >
+                    {getTabLabel(tab)}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -882,55 +943,65 @@ export default function ProjectDetailsPage({
                 {project?.episodes &&
                   Array.isArray(project.episodes) &&
                   project.episodes.length > 0 ? (
-                  project.episodes.map((episode) => (
-                    <button
-                      key={episode._id}
-                      onClick={() => {
-                        requireAuth(() => {
-                          setSelectedEpisode(episode);
-                          // Play video after modal opens
-                          setTimeout(() => {
-                            if (videoModalRef.current) {
-                              videoModalRef.current.play().catch(() => { });
-                            }
-                          }, 100);
-                        });
-                      }}
-                      className="w-full flex items-center gap-4 rounded-2xl bg-gray-900/60 hover:bg-gray-900 transition-colors p-4 text-left cursor-pointer"
-                    >
-                      {/* Thumbnail */}
+                  project.episodes.map((episode) => {
+                    const isLocked = !project?.hasAccess || !!episode.locked;
+                    return (
                       <div
-                        className="w-24 h-20 rounded-2xl bg-cover bg-center flex-shrink-0"
-                        style={{
-                          backgroundImage: episode.thumbnail
-                            ? `url(${getFileUrl(episode.thumbnail)})`
-                            : "linear-gradient(to bottom right, rgba(251, 191, 36, 0.8), rgba(217, 119, 6, 0.4))",
-                        }}
-                      />
-                      {/* Episode Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-lg font-semibold text-white truncate">
-                          {episode.title ||
-                            `Episode ${episode.episodeOrder || ""}`}
-                        </div>
-                        {episode.duration && (
-                          <div className="text-sm text-gray-400">
-                            {formatDuration(episode.duration)}
+                        key={episode._id}
+                        onClick={() => handleItemClick(episode, "Episode")}
+                        className="w-full flex items-center justify-between gap-4 rounded-2xl bg-gray-900/60 hover:bg-gray-900 transition-colors p-4 text-left cursor-pointer group"
+                      >
+                        {/* Thumbnail */}
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div
+                            className="w-24 h-20 rounded-2xl bg-cover bg-center flex-shrink-0 relative overflow-hidden"
+                            style={{
+                              backgroundImage: episode.thumbnail
+                                ? `url(${getFileUrl(episode.thumbnail)})`
+                                : "linear-gradient(to bottom right, rgba(251, 191, 36, 0.8), rgba(217, 119, 6, 0.4))",
+                            }}
+                          >
+                            {isLocked && (
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <span className="text-lg">🔒</span>
+                              </div>
+                            )}
                           </div>
-                        )}
+                          {/* Episode Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-lg font-semibold text-white truncate group-hover:text-red-500 transition-colors">
+                              {episode.title ||
+                                `Episode ${episode.episodeOrder || ""}`}
+                            </div>
+                            {episode.duration && (
+                              <div className="text-sm text-gray-400">
+                                {formatDuration(episode.duration)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {/* Play or Lock Indicator */}
+                        <div className="flex items-center gap-3">
+                          {isLocked ? (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
+                              <span>🔒</span>
+                              <span className="hidden sm:inline">Locked</span>
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-black/40 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:border-red-600/50 group-hover:bg-red-600/20 transition-all">
+                              <svg
+                                className="w-5 h-5 text-white ml-0.5"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      {/* Play Button */}
-                      <div className="w-12 h-12 rounded-full bg-black/40 border border-white/10 flex items-center justify-center flex-shrink-0">
-                        <svg
-                          className="w-5 h-5 text-white ml-0.5"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                        </svg>
-                      </div>
-                    </button>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-12 text-gray-400">
                     <p>No episodes available</p>
@@ -940,37 +1011,56 @@ export default function ProjectDetailsPage({
             )}
 
             {activeTab === "Inventory" && (
-              <div className="py-10 md:py-12 flex justify-center">
+              <div className="space-y-4">
                 {inventory.length > 0 &&
                 (inventory[0]?.inventoryUrl || inventory[0]?.fileUrl) ? (
-                  <button
-                    onClick={() =>
-                      requireAuth(() => {
-                        window.open(
-                          getFileUrl(
-                            inventory[0].inventoryUrl || inventory[0].fileUrl,
-                          ),
-                          "_blank",
-                        );
-                      })
-                    }
-                    className="inline-flex items-center gap-3 px-10 py-4 rounded-full bg-green-600 hover:bg-green-700 transition-colors text-white font-semibold shadow-lg shadow-green-600/20"
-                  >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm4 2h8M8 11h8M8 15h8"
-                      />
-                    </svg>
-                    Open Excel Sheet
-                  </button>
+                  inventory.map((invItem, idx) => {
+                    const isLocked = !project?.hasAccess || !!invItem.locked;
+                    return (
+                      <div
+                        key={invItem._id || idx}
+                        onClick={() => handleItemClick(invItem, "Inventory")}
+                        className="w-full flex items-center justify-between gap-4 rounded-2xl bg-gray-900/60 hover:bg-gray-900 transition-colors p-4 cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div className="w-16 h-16 rounded-2xl bg-green-600/20 flex items-center justify-center border border-green-600/20 flex-shrink-0">
+                            <svg
+                              className="w-8 h-8 text-green-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm4 2h8M8 11h8M8 15h8"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-lg font-semibold text-white truncate group-hover:text-green-400 transition-colors">
+                              {invItem.title || `${project?.title || "Project"} Inventory`}
+                            </div>
+                            <div className="text-sm text-gray-400 truncate">
+                              Excel Inventory Sheet
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <span
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition-all ${
+                              isLocked
+                                ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                : "bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-600/20"
+                            }`}
+                          >
+                            {isLocked ? "🔒 Subscribe to View" : "Download File"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="text-center py-12 text-gray-400">
                     <p>No inventory available</p>
@@ -982,68 +1072,52 @@ export default function ProjectDetailsPage({
             {activeTab === "PDF" && (
               <div className="space-y-4">
                 {pdfs.length > 0 ? (
-                  pdfs.map((pdf) => (
-                    <div
-                      key={pdf._id}
-                      onClick={() =>
-                        requireAuth(() => {
-                          window.open(
-                            getFileUrl(pdf.pdfUrl || pdf.fileUrl),
-                            "_blank",
-                          );
-                        })
-                      }
-                      className="w-full flex items-center gap-4 rounded-2xl bg-gray-900/60 hover:bg-gray-900 transition-colors p-4 cursor-pointer"
-                    >
-                      <div className="w-16 h-16 rounded-2xl bg-red-600/20 flex items-center justify-center border border-red-600/20 flex-shrink-0">
-                        <svg
-                          className="w-8 h-8 text-red-500"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L14 3.5zM8 12h8v2H8v-2zm0 4h8v2H8v-2z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-lg font-semibold text-white truncate">
-                          {pdf.title}
-                        </div>
-                        <div className="text-sm text-gray-400 truncate">
-                          {pdf.title}{" "}
-                          {pdf.size ? (
-                            <span className="text-gray-500">· {pdf.size}</span>
-                          ) : (
-                            ""
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() =>
-                          requireAuth(() => {
-                            window.open(
-                              getFileUrl(pdf.pdfUrl || pdf.fileUrl),
-                              "_blank",
-                            );
-                          })
-                        }
-                        className="w-12 h-12 rounded-full bg-black/40 border border-red-600/30 flex items-center justify-center flex-shrink-0 hover:bg-black/60 transition-colors"
+                  pdfs.map((pdf) => {
+                    const isLocked = !project?.hasAccess || !!pdf.locked;
+                    return (
+                      <div
+                        key={pdf._id}
+                        onClick={() => handleItemClick(pdf, "Brochure")}
+                        className="w-full flex items-center justify-between gap-4 rounded-2xl bg-gray-900/60 hover:bg-gray-900 transition-colors p-4 cursor-pointer group"
                       >
-                        <svg
-                          className="w-5 h-5 text-red-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 3v10m0 0l4-4m-4 4l-4-4M4 17v3h16v-3"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  ))
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div className="w-16 h-16 rounded-2xl bg-red-600/20 flex items-center justify-center border border-red-600/20 flex-shrink-0">
+                            <svg
+                              className="w-8 h-8 text-red-500"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L14 3.5zM8 12h8v2H8v-2zm0 4h8v2H8v-2z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-lg font-semibold text-white truncate group-hover:text-red-500 transition-colors">
+                              {pdf.title}
+                            </div>
+                            <div className="text-sm text-gray-400 truncate">
+                              {pdf.title}{" "}
+                              {pdf.size ? (
+                                <span className="text-gray-500">· {pdf.size}</span>
+                              ) : (
+                                ""
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <span
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition-all ${
+                              isLocked
+                                ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                : "bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white"
+                            }`}
+                          >
+                            {isLocked ? "🔒 Subscribe to Download" : "Open PDF"}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="text-center py-12 text-gray-400">
                     <p>No PDFs available</p>
@@ -1057,72 +1131,82 @@ export default function ProjectDetailsPage({
                 {project?.reels &&
                   Array.isArray(project.reels) &&
                   project.reels.length > 0 ? (
-                  project.reels.map((reel) => (
-                    <div
-                      key={reel._id}
-                      onClick={() =>
-                        requireAuth(() => {
-                          window.open(getFileUrl(reel.fileUrl), "_blank");
-                        })
-                      }
-                      className="flex gap-4 bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition-all duration-300 cursor-pointer"
-                    >
-                      <div className="relative w-32 h-48 md:w-40 md:h-60 flex-shrink-0 rounded-lg overflow-hidden">
-                        <div
-                          className="absolute inset-0 bg-cover bg-center"
-                          style={{
-                            backgroundImage: reel.thumbnailUrl
-                              ? `url(${getFileUrl(reel.thumbnailUrl)})`
-                              : project?.projectThumbnailUrl
-                                ? `url(${getFileUrl(project.projectThumbnailUrl)})`
-                                : "linear-gradient(to bottom right, rgba(220, 38, 38, 0.8), rgba(153, 27, 27, 0.4))",
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-black/40" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
-                            <svg
-                              className="w-6 h-6 text-white ml-1"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                            </svg>
+                  project.reels.map((reel) => {
+                    const isLocked = !project?.hasAccess || !!reel.locked;
+                    return (
+                      <div
+                        key={reel._id}
+                        onClick={() => handleItemClick(reel, "Reel")}
+                        className="flex gap-4 bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition-all duration-300 cursor-pointer"
+                      >
+                        <div className="relative w-32 h-48 md:w-40 md:h-60 flex-shrink-0 rounded-lg overflow-hidden">
+                          <div
+                            className="absolute inset-0 bg-cover bg-center"
+                            style={{
+                              backgroundImage: reel.thumbnailUrl
+                                ? `url(${getFileUrl(reel.thumbnailUrl)})`
+                                : project?.projectThumbnailUrl
+                                  ? `url(${getFileUrl(project.projectThumbnailUrl)})`
+                                  : "linear-gradient(to bottom right, rgba(220, 38, 38, 0.8), rgba(153, 27, 27, 0.4))",
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/40" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            {isLocked ? (
+                              <div className="w-12 h-12 bg-black/70 border border-amber-500/50 rounded-full flex items-center justify-center text-xl">
+                                🔒
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
+                                <svg
+                                  className="w-6 h-6 text-white ml-1"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div>
+                            <h3 className="text-white font-bold text-lg md:text-xl mb-2">
+                              {reel.title || "Reel"}
+                            </h3>
+                            {isLocked && (
+                              <span className="inline-block text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
+                                🔒 Subscription Required
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {reel.number && (
+                              <span className="text-2xl md:text-3xl font-bold text-white">
+                                {reel.number}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <svg
+                                className="w-5 h-5 text-white"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              <span className="text-gray-400">
+                                {reel.likes || 0}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div>
-                          <h3 className="text-white font-bold text-lg md:text-xl mb-2">
-                            {reel.title || "Reel"}
-                          </h3>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          {reel.number && (
-                            <span className="text-2xl md:text-3xl font-bold text-white">
-                              {reel.number}
-                            </span>
-                          )}
-                          <div className="flex items-center gap-2">
-                            <svg
-                              className="w-5 h-5 text-white"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            <span className="text-gray-400">
-                              {reel.likes || 0}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-12 text-gray-400">
                     <p>No reels available</p>
@@ -1254,6 +1338,91 @@ export default function ProjectDetailsPage({
                   {formatDuration(selectedEpisode.duration)}
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subscribe Modal (Paywall) */}
+      {showSubscribeModal && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => {
+            setIsSubscribeModalClosing(true);
+            setTimeout(() => {
+              setShowSubscribeModal(false);
+              setIsSubscribeModalClosing(false);
+            }, 300);
+          }}
+          style={{
+            animation: isSubscribeModalClosing
+              ? "authFadeOut 0.3s ease-in forwards"
+              : "authFadeIn 0.3s ease-out",
+          }}
+        >
+          <div
+            className="bg-[#111] border border-zinc-800 p-6 md:p-8 rounded-[2rem] max-w-md w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] relative text-center"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              animation: isSubscribeModalClosing
+                ? "authZoomOut 0.3s ease-in forwards"
+                : "authZoomIn 0.3s ease-out",
+            }}
+          >
+            <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-[0_0_20px_rgba(245,158,11,0.15)] text-3xl">
+              🔒
+            </div>
+            <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">
+              Subscription Required
+            </h3>
+            <p className="text-gray-300 text-sm mb-8 leading-relaxed">
+              {lockedItemName ? (
+                <span className="font-semibold text-white">{lockedItemName} </span>
+              ) : (
+                "This content "
+              )}
+              is exclusive to subscribers. Subscribe now to get unlimited access
+              to all project episodes, reels, inventory, and PDFs.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setIsSubscribeModalClosing(true);
+                  setTimeout(() => {
+                    setShowSubscribeModal(false);
+                    setIsSubscribeModalClosing(false);
+                    router.push("/checkout");
+                  }, 300);
+                }}
+                className="w-full h-14 bg-[#ff0000] shadow-[0_0_20px_rgba(255,0,0,0.2)] text-white font-bold rounded-full hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <span>Go to Subscribe</span>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={() => {
+                  setIsSubscribeModalClosing(true);
+                  setTimeout(() => {
+                    setShowSubscribeModal(false);
+                    setIsSubscribeModalClosing(false);
+                  }, 300);
+                }}
+                className="w-full h-14 bg-[#1a1a1a] border border-zinc-800 text-gray-300 font-medium rounded-full hover:text-white hover:bg-zinc-800 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

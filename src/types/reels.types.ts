@@ -34,6 +34,7 @@ export interface IReel {
   likes?: number;
   order?: number;
   number?: number;
+  locked?: boolean;
 }
 
 export type Reel = IReel;

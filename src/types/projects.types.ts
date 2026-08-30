@@ -85,6 +85,7 @@ export interface ProjectEpisode {
   duration?: string | number;
   thumbnail?: string;
   episodeUrl?: string;
+  locked?: boolean;
 }
 
 export interface ProjectReel {
@@ -94,18 +95,24 @@ export interface ProjectReel {
   reelUrl?: string;
   likes?: number;
   number?: number;
+  locked?: boolean;
 }
 
 export interface ProjectInventory {
   _id: string;
   title: string;
   inventoryUrl?: string;
+  fileUrl?: string;
+  locked?: boolean;
 }
 
 export interface ProjectPdf {
   _id: string;
   title: string;
   pdfUrl?: string;
+  fileUrl?: string;
+  size?: string;
+  locked?: boolean;
 }
 
 export interface IProject {
@@ -139,6 +146,7 @@ export interface IProject {
   featured?: boolean;
   published?: boolean;
   adUrl?: string;
+  hasAccess?: boolean;
 }
 
 export type Project = IProject;

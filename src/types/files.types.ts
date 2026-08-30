@@ -31,11 +31,13 @@ export interface UpdatePdfPayload {
 export interface IInventory {
   _id: string;
   projectId: string;
-  fileUrl: string;
+  fileUrl?: string;
+  inventoryUrl?: string;
   fileName?: string;
   s3Key?: string;
   title?: string;
   description?: string;
+  locked?: boolean;
 }
 
 export type Inventory = IInventory;
@@ -49,6 +51,7 @@ export interface IPdf {
   title: string;
   s3Key?: string;
   size?: string;
+  locked?: boolean;
 }
 
 export type IPdfFile = IPdf;
