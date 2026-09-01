@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Lock } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ChatWidget from "@/components/ChatWidget";
@@ -951,21 +952,21 @@ export default function ProjectDetailsPage({
                         onClick={() => handleItemClick(episode, "Episode")}
                         className="w-full flex items-center justify-between gap-4 rounded-2xl bg-gray-900/60 hover:bg-gray-900 transition-colors p-4 text-left cursor-pointer group"
                       >
-                        {/* Thumbnail */}
+                        {/* Thumbnail with Light Sweep Animation */}
                         <div className="flex items-center gap-4 min-w-0 flex-1">
-                          <div
-                            className="w-24 h-20 rounded-2xl bg-cover bg-center flex-shrink-0 relative overflow-hidden"
-                            style={{
-                              backgroundImage: episode.thumbnail
-                                ? `url(${getFileUrl(episode.thumbnail)})`
-                                : "linear-gradient(to bottom right, rgba(251, 191, 36, 0.8), rgba(217, 119, 6, 0.4))",
-                            }}
-                          >
-                            {isLocked && (
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                <span className="text-lg">🔒</span>
-                              </div>
-                            )}
+                          <div className="w-24 h-20 rounded-2xl flex-shrink-0 relative overflow-hidden bg-zinc-900 border border-white/10 shadow-md">
+                            <div
+                              className="w-full h-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
+                              style={{
+                                backgroundImage: episode.thumbnail
+                                  ? `url(${getFileUrl(episode.thumbnail)})`
+                                  : "linear-gradient(to bottom right, rgba(220, 38, 38, 0.8), rgba(153, 27, 27, 0.4))",
+                              }}
+                            />
+                            {/* Light Sweep Shimmer Ray */}
+                            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none skew-x-12" />
+                            {/* Depth Gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
                           </div>
                           {/* Episode Info */}
                           <div className="flex-1 min-w-0">
@@ -983,10 +984,13 @@ export default function ProjectDetailsPage({
                         {/* Play or Lock Indicator */}
                         <div className="flex items-center gap-3">
                           {isLocked ? (
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
-                              <span>🔒</span>
-                              <span className="hidden sm:inline">Locked</span>
-                            </div>
+                            <button
+                              type="button"
+                              className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700/90 text-zinc-200 hover:text-white border border-zinc-700/80 hover:border-red-500/80 text-xs sm:text-sm font-semibold transition-all duration-300 shadow-sm hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95 flex-shrink-0 select-none backdrop-blur-sm"
+                            >
+                              <Lock className="w-3.5 h-3.5 text-zinc-400 group-hover:text-red-400 transition-colors" />
+                              <span>Subscribe to watch</span>
+                            </button>
                           ) : (
                             <div className="w-12 h-12 rounded-full bg-black/40 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:border-red-600/50 group-hover:bg-red-600/20 transition-all">
                               <svg
@@ -1049,13 +1053,20 @@ export default function ProjectDetailsPage({
                         </div>
                         <div>
                           <span
-                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition-all ${
+                            className={`inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 shadow-sm active:scale-95 ${
                               isLocked
-                                ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                                : "bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-600/20"
+                                ? "bg-zinc-800/90 hover:bg-zinc-700/90 text-zinc-200 hover:text-white border border-zinc-700/80 hover:border-red-500/80 hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] backdrop-blur-sm"
+                                : "bg-green-600 text-white hover:bg-green-700 shadow-green-600/20"
                             }`}
                           >
-                            {isLocked ? "🔒 Subscribe to View" : "Download File"}
+                            {isLocked ? (
+                              <>
+                                <Lock className="w-3.5 h-3.5 text-zinc-400 group-hover:text-red-400 transition-colors" />
+                                <span>Subscribe to View</span>
+                              </>
+                            ) : (
+                              "Download File"
+                            )}
                           </span>
                         </div>
                       </div>
@@ -1106,13 +1117,20 @@ export default function ProjectDetailsPage({
                         </div>
                         <div>
                           <span
-                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition-all ${
+                            className={`inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 shadow-sm active:scale-95 ${
                               isLocked
-                                ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                                ? "bg-zinc-800/90 hover:bg-zinc-700/90 text-zinc-200 hover:text-white border border-zinc-700/80 hover:border-red-500/80 hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] backdrop-blur-sm"
                                 : "bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white"
                             }`}
                           >
-                            {isLocked ? "🔒 Subscribe to Download" : "Open PDF"}
+                            {isLocked ? (
+                              <>
+                                <Lock className="w-3.5 h-3.5 text-zinc-400 group-hover:text-red-400 transition-colors" />
+                                <span>Subscribe to Download</span>
+                              </>
+                            ) : (
+                              "Open PDF"
+                            )}
                           </span>
                         </div>
                       </div>
@@ -1137,11 +1155,11 @@ export default function ProjectDetailsPage({
                       <div
                         key={reel._id}
                         onClick={() => handleItemClick(reel, "Reel")}
-                        className="flex gap-4 bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition-all duration-300 cursor-pointer"
+                        className="flex gap-4 bg-gray-900 rounded-2xl p-4 hover:bg-gray-800 transition-all duration-300 cursor-pointer group"
                       >
-                        <div className="relative w-32 h-48 md:w-40 md:h-60 flex-shrink-0 rounded-lg overflow-hidden">
+                        <div className="relative w-32 h-48 md:w-40 md:h-60 flex-shrink-0 rounded-xl overflow-hidden bg-zinc-900 border border-white/10 shadow-md">
                           <div
-                            className="absolute inset-0 bg-cover bg-center"
+                            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
                             style={{
                               backgroundImage: reel.thumbnailUrl
                                 ? `url(${getFileUrl(reel.thumbnailUrl)})`
@@ -1150,11 +1168,13 @@ export default function ProjectDetailsPage({
                                   : "linear-gradient(to bottom right, rgba(220, 38, 38, 0.8), rgba(153, 27, 27, 0.4))",
                             }}
                           />
-                          <div className="absolute inset-0 bg-black/40" />
+                          {/* Light Sweep Shimmer Ray */}
+                          <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none skew-x-12" />
+                          <div className="absolute inset-0 bg-black/30" />
                           <div className="absolute inset-0 flex items-center justify-center">
                             {isLocked ? (
-                              <div className="w-12 h-12 bg-black/70 border border-amber-500/50 rounded-full flex items-center justify-center text-xl">
-                                🔒
+                              <div className="w-12 h-12 bg-black/60 backdrop-blur-sm border border-white/20 rounded-full flex items-center justify-center text-white shadow-lg">
+                                <Lock className="w-5 h-5" />
                               </div>
                             ) : (
                               <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
@@ -1175,8 +1195,9 @@ export default function ProjectDetailsPage({
                               {reel.title || "Reel"}
                             </h3>
                             {isLocked && (
-                              <span className="inline-block text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full">
-                                🔒 Subscription Required
+                              <span className="inline-flex items-center gap-1.5 text-xs text-zinc-200 bg-zinc-800/90 border border-zinc-700/80 px-3 py-1.5 rounded-xl font-semibold shadow-sm backdrop-blur-sm">
+                                <Lock className="w-3 h-3 text-zinc-400" />
+                                <span>Subscribe to watch</span>
                               </span>
                             )}
                           </div>
@@ -1343,10 +1364,10 @@ export default function ProjectDetailsPage({
         </div>
       )}
 
-      {/* Subscribe Modal (Paywall) */}
+      {/* Subscribe Modal (Paywall - 2-Column Stitch Design) */}
       {showSubscribeModal && (
         <div
-          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-[20px] flex items-center justify-center p-5 md:p-16"
           onClick={() => {
             setIsSubscribeModalClosing(true);
             setTimeout(() => {
@@ -1361,7 +1382,7 @@ export default function ProjectDetailsPage({
           }}
         >
           <div
-            className="bg-[#111] border border-zinc-800 p-6 md:p-8 rounded-[2rem] max-w-md w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] relative text-center"
+            className="bg-[#111114] border border-white/10 rounded-xl max-w-[780px] w-full overflow-hidden shadow-2xl relative flex flex-col md:flex-row"
             onClick={(e) => e.stopPropagation()}
             style={{
               animation: isSubscribeModalClosing
@@ -1369,60 +1390,107 @@ export default function ProjectDetailsPage({
                 : "authZoomIn 0.3s ease-out",
             }}
           >
-            <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-5 shadow-[0_0_20px_rgba(245,158,11,0.15)] text-3xl">
-              🔒
+            {/* Left Column: Stitch Image */}
+            <div className="w-full md:w-1/2 relative min-h-[300px] md:min-h-[500px] bg-black">
+              <img
+                src="/assets/subscription-modal-preview.jpg"
+                alt="Orientation VIP Preview"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              {/* Vignette effect */}
+              <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 80px rgba(17, 17, 20, 0.9)' }} />
+              {/* Mobile bottom gradient blend */}
+              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#111114] to-transparent md:hidden" />
+              {/* Desktop right gradient blend */}
+              <div className="hidden md:block absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#111114] to-transparent" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">
-              Subscription Required
-            </h3>
-            <p className="text-gray-300 text-sm mb-8 leading-relaxed">
-              {lockedItemName ? (
-                <span className="font-semibold text-white">{lockedItemName} </span>
-              ) : (
-                "This content "
-              )}
-              is exclusive to subscribers. Subscribe now to get unlimited access
-              to all project episodes, reels, inventory, and PDFs.
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  setIsSubscribeModalClosing(true);
-                  setTimeout(() => {
-                    setShowSubscribeModal(false);
-                    setIsSubscribeModalClosing(false);
-                    router.push("/checkout");
-                  }, 300);
-                }}
-                className="w-full h-14 bg-[#ff0000] shadow-[0_0_20px_rgba(255,0,0,0.2)] text-white font-bold rounded-full hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <span>Go to Subscribe</span>
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+
+            {/* Right Column: Content & Actions */}
+            <div className="w-full md:w-1/2 p-5 md:p-8 flex flex-col justify-center bg-[#111114]">
+              <div className="mb-4">
+                {/* VIP Badge */}
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide mb-4 border" style={{ background: 'rgba(255, 84, 81, 0.1)', color: '#ffb3ad', borderColor: 'rgba(255, 84, 81, 0.3)' }}>
+                  Orientation VIP
+                </span>
+
+                {/* Headline */}
+                <h2 className="text-2xl md:text-[32px] font-bold text-[#e2e2e2] mb-2 leading-tight tracking-tight">
+                  Unlock Full Access
+                </h2>
+
+                {/* Subtitle */}
+                <p className="text-sm text-[#e4beba] leading-relaxed">
+                  Gain exclusive access to the full {project?.title ? `'${project.title}'` : 'Orientation'} series and more.
+                </p>
+              </div>
+
+              {/* Benefits Grid - Glassmorphism Cards */}
+              <div className="grid grid-cols-2 gap-2.5 mb-6 md:mb-8">
+                <div className="rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1.5 group hover:border-[#ff5451]/60 transition-colors duration-300" style={{ background: 'rgba(53, 53, 53, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <svg className="w-6 h-6 text-[#ffb3ad] group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-xs font-semibold text-[#e2e2e2] tracking-wide">All Orientations</span>
+                </div>
+
+                <div className="rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1.5 group hover:border-[#ff5451]/60 transition-colors duration-300" style={{ background: 'rgba(53, 53, 53, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <svg className="w-6 h-6 text-[#ffb3ad] group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                  <span className="text-xs font-semibold text-[#e2e2e2] tracking-wide">Exclusive Orientations</span>
+                </div>
+
+                <div className="rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1.5 group hover:border-[#ff5451]/60 transition-colors duration-300" style={{ background: 'rgba(53, 53, 53, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <svg className="w-6 h-6 text-[#ffb3ad] group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span className="text-xs font-semibold text-[#e2e2e2] tracking-wide">Campaign Sales Videos</span>
+                </div>
+
+                <div className="rounded-xl p-3 flex flex-col items-center justify-center text-center gap-1.5 group hover:border-[#ff5451]/60 transition-colors duration-300" style={{ background: 'rgba(53, 53, 53, 0.4)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <svg className="w-6 h-6 text-[#ffb3ad] group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                  </svg>
+                  <span className="text-xs font-semibold text-[#e2e2e2] tracking-wide">Restaurant & Events</span>
+                </div>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col gap-3 mt-auto">
+                <button
+                  onClick={() => {
+                    setIsSubscribeModalClosing(true);
+                    setTimeout(() => {
+                      setShowSubscribeModal(false);
+                      setIsSubscribeModalClosing(false);
+                      router.push("/checkout");
+                    }, 300);
+                  }}
+                  className="relative inline-flex h-13 md:h-14 w-full overflow-hidden rounded-xl p-[1.5px] focus:outline-none focus:ring-2 focus:ring-red-500 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer group select-none shadow-[0_0_20px_rgba(255,51,85,0.25)] hover:shadow-[0_0_30px_rgba(255,51,85,0.45)]"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={() => {
-                  setIsSubscribeModalClosing(true);
-                  setTimeout(() => {
-                    setShowSubscribeModal(false);
-                    setIsSubscribeModalClosing(false);
-                  }, 300);
-                }}
-                className="w-full h-14 bg-[#1a1a1a] border border-zinc-800 text-gray-300 font-medium rounded-full hover:text-white hover:bg-zinc-800 transition-colors"
-              >
-                Cancel
-              </button>
+                  <span className="absolute inset-[-1000%] animate-[spin_2.5s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#ff3355_0%,#ef4444_25%,#7f1d1d_50%,#ef4444_75%,#ff3355_100%)]" />
+                  <span className="inline-flex h-full w-full items-center justify-center gap-2 rounded-xl bg-zinc-950/90 group-hover:bg-zinc-950/70 px-6 py-2 text-base md:text-lg font-bold text-white backdrop-blur-3xl transition-colors">
+                    <span>Go to Subscribe</span>
+                    <svg className="w-5 h-5 text-red-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSubscribeModalClosing(true);
+                    setTimeout(() => {
+                      setShowSubscribeModal(false);
+                      setIsSubscribeModalClosing(false);
+                    }, 300);
+                  }}
+                  className="text-[#e4beba] hover:text-[#ffb3ad] transition-colors text-xs font-semibold uppercase tracking-[0.05em] text-center py-2 cursor-pointer"
+                >
+                  Cancel / Maybe Later
+                </button>
+              </div>
             </div>
           </div>
         </div>

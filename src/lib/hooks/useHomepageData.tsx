@@ -15,6 +15,9 @@ export interface HomepageProject {
   developer?: { _id?: string; name: string; logoUrl?: string };
   trendingScore?: number;
   rank?: number;
+  episodes?: any[];
+  hasAccess?: boolean;
+  isFree?: boolean;
   // featured-specific
   ad_url?: string;
   adUrl?: string;
@@ -44,10 +47,6 @@ const HomepageDataContext = createContext<HomepageData>({
 /**
  * Fetches all homepage data in a single coordinated parallel fetch.
  * Components read from this context instead of making individual API calls.
- *
- * Request reduction:
- *  BEFORE: Hero(1) + Latest(1) + Trending(1) + Upcoming(1–3) + ProjectsByArea×3 (3–6) = 7–13 requests
- *  AFTER:  featured(1) + allProjects(1) + top10(1) + upcoming(1) = 4 requests flat
  */
 export function HomepageDataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<HomepageData>({
@@ -63,10 +62,8 @@ export function HomepageDataProvider({ children }: { children: ReactNode }) {
 
     const fetchAll = async () => {
       try {
-        // Single parallel fetch — 4 requests total for the entire homepage
         const [featured, all, top10, upcoming] = await Promise.all([
           projectsApi.getFeatured(3).catch(() => [] as HomepageProject[]),
-          // Fetch enough projects to cover Latest section + all 3 area sections
           projectsApi.list({ limit: 80 }).catch(() => [] as HomepageProject[]),
           projectsApi.getTop10(10).catch(() => [] as HomepageProject[]),
           projectsApi.getUpcoming(10).catch(() => [] as HomepageProject[]),
@@ -74,8 +71,24 @@ export function HomepageDataProvider({ children }: { children: ReactNode }) {
 
         if (cancelled) return;
 
+        const rawFeaturedList = (Array.isArray(featured) ? featured : []) as HomepageProject[];
+        
+        // Fetch detailed data for featured projects in parallel (to get episodes/locked status)
+        const detailedFeatured = await Promise.all(
+          rawFeaturedList.map(async (fp) => {
+            try {
+              const full = await projectsApi.get(fp._id);
+              return { ...fp, ...full };
+            } catch {
+              return fp;
+            }
+          })
+        );
+
+        if (cancelled) return;
+
         setData({
-          featuredProjects: (Array.isArray(featured) ? featured : []) as HomepageProject[],
+          featuredProjects: detailedFeatured,
           allProjects: (Array.isArray(all) ? all : []) as HomepageProject[],
           top10Projects: (Array.isArray(top10) ? top10 : []) as HomepageProject[],
           upcomingProjects: (Array.isArray(upcoming) ? upcoming : []) as HomepageProject[],
