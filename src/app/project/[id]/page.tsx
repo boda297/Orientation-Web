@@ -1420,7 +1420,7 @@ export default function ProjectDetailsPage({
 
                 {/* Subtitle */}
                 <p className="text-sm text-[#e4beba] leading-relaxed">
-                  Gain exclusive access to the full {project?.title ? `'${project.title}'` : 'Orientation'} series and more.
+                  Gain full VIP access to all Orientation series and exclusive content.
                 </p>
               </div>
 
