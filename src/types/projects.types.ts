@@ -115,6 +115,19 @@ export interface ProjectPdf {
   locked?: boolean;
 }
 
+export interface ProjectSv {
+  _id: string;
+  title: string;
+  videoUrl?: string;
+  fileUrl?: string;
+  thumbnail?: string;
+  duration?: string | number;
+  size?: string;
+  locked?: boolean;
+}
+
+export type ISv = ProjectSv;
+
 export interface IProject {
   _id: string;
   title: string;
@@ -135,6 +148,7 @@ export interface IProject {
   reels?: Array<IReel>;
   inventory?: Array<IInventory>;
   pdf?: Array<IPdf>;
+  sv?: Array<ProjectSv>;
   projectThumbnailUrl: string;
   heroVideoUrl: string;
   whatsappNumber?: string;

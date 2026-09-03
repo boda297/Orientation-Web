@@ -108,7 +108,7 @@ export default function ProjectDetailsPage({
   // Unified click handler for all locked media (Episodes, Inventory, PDF, Reels)
   const handleItemClick = (
     item: any,
-    type: "Episode" | "Inventory" | "Brochure" | "PDF" | "Reel",
+    type: "Episode" | "Inventory" | "Brochure" | "PDF" | "S.V" | "Reel",
   ) => {
     if (!hasMounted) return;
 
@@ -143,6 +143,21 @@ export default function ProjectDetailsPage({
       if (url) {
         window.open(getFileUrl(url), "_blank");
       }
+    } else if (type === "S.V") {
+      const videoUrl = item?.videoUrl || item?.fileUrl || item?.episodeUrl || item?.pdfUrl;
+      if (videoUrl) {
+        setSelectedEpisode({
+          _id: item._id,
+          title: item.title || "Site Visit",
+          episodeUrl: videoUrl,
+          thumbnail: item.thumbnail || project?.projectThumbnailUrl,
+        } as any);
+        setTimeout(() => {
+          if (videoModalRef.current) {
+            videoModalRef.current.play().catch(() => {});
+          }
+        }, 100);
+      }
     } else if (type === "PDF" || type === "Brochure") {
       const url = item?.pdfUrl || item?.fileUrl;
       if (url) {
@@ -156,7 +171,7 @@ export default function ProjectDetailsPage({
     }
   };
 
-  const tabs = ["Project", "Episodes", "Inventory", "Reels", "PDF"];
+  const tabs = ["Project", "Episodes", "Inventory", "Reels", "S.V"];
 
   // Check if project is saved on mount
   useEffect(() => {
@@ -276,8 +291,12 @@ export default function ProjectDetailsPage({
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
-      if (tabParam && tabs.includes(tabParam)) {
-        setActiveTab(tabParam);
+      if (tabParam) {
+        if (tabs.includes(tabParam)) {
+          setActiveTab(tabParam);
+        } else if (tabParam.toLowerCase() === "pdf" || tabParam.toLowerCase() === "s.v") {
+          setActiveTab("S.V");
+        }
       }
       const episodeParam = params.get("episode");
       const timeParam = params.get("time");
@@ -419,13 +438,14 @@ export default function ProjectDetailsPage({
           }
         }
 
-        // Use PDFs directly from populated project data (0 extra requests)
+        // Use S.V / PDFs directly from populated project data (0 extra requests)
+        const svData = (projectData as any).sv || projectData.pdf;
         if (
-          projectData.pdf &&
-          Array.isArray(projectData.pdf) &&
-          projectData.pdf.length > 0
+          svData &&
+          Array.isArray(svData) &&
+          svData.length > 0
         ) {
-          setPdfs(projectData.pdf);
+          setPdfs(svData);
         }
       } catch (err: any) {
         let errorMessage = "Failed to load project";
@@ -862,8 +882,8 @@ export default function ProjectDetailsPage({
                     return `Episodes (${project?.episodes?.length || 0})`;
                   if (t === "Reels")
                     return `Reels (${project?.reels?.length || 0})`;
-                  if (t === "PDF")
-                    return `PDF (${pdfs?.length || (Array.isArray(project?.pdf) ? project.pdf.length : 0)})`;
+                  if (t === "S.V" || t === "PDF")
+                    return `S.V (${pdfs?.length || ((project as any)?.sv ? (project as any).sv.length : (Array.isArray(project?.pdf) ? project.pdf.length : 0))})`;
                   return t;
                 };
                 return (
@@ -1080,65 +1100,80 @@ export default function ProjectDetailsPage({
               </div>
             )}
 
-            {activeTab === "PDF" && (
+            {(activeTab === "S.V" || activeTab === "PDF") && (
               <div className="space-y-4">
                 {pdfs.length > 0 ? (
-                  pdfs.map((pdf) => {
-                    const isLocked = !project?.hasAccess || !!pdf.locked;
+                  pdfs.map((sv) => {
+                    const isLocked = !project?.hasAccess || !!sv.locked;
                     return (
                       <div
-                        key={pdf._id}
-                        onClick={() => handleItemClick(pdf, "Brochure")}
-                        className="w-full flex items-center justify-between gap-4 rounded-2xl bg-gray-900/60 hover:bg-gray-900 transition-colors p-4 cursor-pointer group"
+                        key={sv._id}
+                        onClick={() => handleItemClick(sv, "S.V")}
+                        className="w-full flex items-center justify-between gap-4 rounded-2xl bg-gray-900/60 hover:bg-gray-900 transition-colors p-4 text-left cursor-pointer group"
                       >
+                        {/* Video Thumbnail with Light Sweep Animation */}
                         <div className="flex items-center gap-4 min-w-0 flex-1">
-                          <div className="w-16 h-16 rounded-2xl bg-red-600/20 flex items-center justify-center border border-red-600/20 flex-shrink-0">
-                            <svg
-                              className="w-8 h-8 text-red-500"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L14 3.5zM8 12h8v2H8v-2zm0 4h8v2H8v-2z" />
-                            </svg>
+                          <div className="w-24 h-20 rounded-2xl flex-shrink-0 relative overflow-hidden bg-zinc-900 border border-white/10 shadow-md">
+                            <div
+                              className="w-full h-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
+                              style={{
+                                backgroundImage: sv.thumbnail
+                                  ? `url(${getFileUrl(sv.thumbnail)})`
+                                  : project?.projectThumbnailUrl
+                                    ? `url(${getFileUrl(project.projectThumbnailUrl)})`
+                                    : "linear-gradient(to bottom right, rgba(220, 38, 38, 0.8), rgba(153, 27, 27, 0.4))",
+                              }}
+                            />
+                            {/* Light Sweep Shimmer Ray */}
+                            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none skew-x-12" />
+                            {/* Depth Gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+                            {/* Video Badge Icon */}
+                            <div className="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-md bg-black/70 flex items-center justify-center">
+                              <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                              </svg>
+                            </div>
                           </div>
+                          {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="text-lg font-semibold text-white truncate group-hover:text-red-500 transition-colors">
-                              {pdf.title}
+                              {sv.title}
                             </div>
                             <div className="text-sm text-gray-400 truncate">
-                              {pdf.title}{" "}
-                              {pdf.size ? (
-                                <span className="text-gray-500">· {pdf.size}</span>
-                              ) : (
-                                ""
-                              )}
+                              Site Visit Video {sv.duration ? `· ${formatDuration(sv.duration)}` : ""}
                             </div>
                           </div>
                         </div>
-                        <div>
-                          <span
-                            className={`inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 shadow-sm active:scale-95 ${
-                              isLocked
-                                ? "bg-zinc-800/90 hover:bg-zinc-700/90 text-zinc-200 hover:text-white border border-zinc-700/80 hover:border-red-500/80 hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] backdrop-blur-sm"
-                                : "bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600 hover:text-white"
-                            }`}
-                          >
-                            {isLocked ? (
-                              <>
-                                <Lock className="w-3.5 h-3.5 text-zinc-400 group-hover:text-red-400 transition-colors" />
-                                <span>Subscribe to Download</span>
-                              </>
-                            ) : (
-                              "Open PDF"
-                            )}
-                          </span>
+
+                        {/* Play or Lock Indicator */}
+                        <div className="flex items-center gap-3">
+                          {isLocked ? (
+                            <button
+                              type="button"
+                              className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700/90 text-zinc-200 hover:text-white border border-zinc-700/80 hover:border-red-500/80 text-xs sm:text-sm font-semibold transition-all duration-300 shadow-sm hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] active:scale-95 flex-shrink-0 select-none backdrop-blur-sm"
+                            >
+                              <Lock className="w-3.5 h-3.5 text-zinc-400 group-hover:text-red-400 transition-colors" />
+                              <span>Subscribe to watch</span>
+                            </button>
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-black/40 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:border-red-600/50 group-hover:bg-red-600/20 transition-all">
+                              <svg
+                                className="w-5 h-5 text-white ml-0.5"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                              </svg>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
                   })
                 ) : (
                   <div className="text-center py-12 text-gray-400">
-                    <p>No PDFs available</p>
+                    <p>No S.V videos available</p>
                   </div>
                 )}
               </div>

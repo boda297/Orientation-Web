@@ -31,7 +31,7 @@ export function ProjectTabs({
   // Unified click handler for all locked media
   const handleItemClick = (
     item: any,
-    type: "Episode" | "Inventory" | "Brochure" | "PDF"
+    type: "Episode" | "Inventory" | "Brochure" | "PDF" | "S.V"
   ) => {
     // 1. Guest user check -> Show Login Modal
     if (!tokenStorage.isValid()) {
@@ -68,7 +68,7 @@ export function ProjectTabs({
       }
     }
 
-    if (type === "PDF" || type === "Brochure") {
+    if (type === "PDF" || type === "Brochure" || type === "S.V") {
       if (onOpenPdf) {
         onOpenPdf(item);
       } else {
@@ -118,7 +118,7 @@ export function ProjectTabs({
               : "text-gray-400 hover:text-white"
           }`}
         >
-          PDF ({pdfs.length})
+          S.V ({pdfs.length})
         </button>
       </div>
 
@@ -233,7 +233,7 @@ export function ProjectTabs({
               return (
                 <div
                   key={file._id}
-                  onClick={() => handleItemClick(file, "Brochure")}
+                  onClick={() => handleItemClick(file, "S.V")}
                   className="p-4 bg-gray-900/60 hover:bg-gray-900 rounded-xl flex justify-between items-center cursor-pointer transition-all"
                 >
                   <span className="text-white">📄 {file.title}</span>
@@ -250,14 +250,14 @@ export function ProjectTabs({
                         <span>Subscribe to Download</span>
                       </>
                     ) : (
-                      "Open PDF"
+                      "Open S.V"
                     )}
                   </span>
                 </div>
               );
             })
           ) : (
-            <p className="text-gray-400 py-6 text-center">No PDFs available</p>
+            <p className="text-gray-400 py-6 text-center">No S.V available</p>
           )}
         </div>
       )}

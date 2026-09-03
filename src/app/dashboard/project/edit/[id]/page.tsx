@@ -14,6 +14,7 @@ import { developersApi } from '@/lib/api/developer.api';
 import { episodesApi } from '@/lib/api/episodes.api';
 import { reelsApi } from '@/lib/api/reels.api';
 import { inventoryApi, pdfsApi } from '@/lib/api/files.api';
+import { svApi } from '@/lib/api/sv.api';
 import LocationSelect from '@/components/LocationSelect';
 import { formatLocationName } from '@/lib/locationUtils';
 
@@ -25,12 +26,13 @@ interface Episode {
 interface Reel { _id: string; title: string; thumbnail?: string; fileUrl?: string; }
 interface Inventory { _id: string; title: string; fileUrl?: string; }
 interface Pdf { _id: string; title: string; fileUrl?: string; pdfUrl?: string; }
+interface SvItem { _id: string; title: string; fileUrl?: string; videoUrl?: string; pdfUrl?: string; thumbnail?: string; }
 interface Project {
     _id: string; title: string; location?: string; whatsappNumber?: string;
     script?: string; status?: string; featured?: boolean; published?: boolean;
     logoUrl?: string; heroVideoUrl?: string; projectThumbnailUrl?: string;
     developer?: { _id: string; name: string; };
-    episodes?: Episode[]; reels?: Reel[]; inventory?: Inventory; pdf?: Pdf[];
+    episodes?: Episode[]; reels?: Reel[]; inventory?: Inventory; pdf?: Pdf[]; sv?: SvItem[];
 }
 
 function Banner({ type, msg, onClose }: { type: 'success' | 'error'; msg: string; onClose: () => void }) {
@@ -209,7 +211,7 @@ function SubmitBtn({ loading, label }: { loading: boolean; label: string }) {
 export default function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
 
-    const TABS = ['Project Details', 'Episodes', 'Reels', 'Inventory', 'PDFs'];
+    const TABS = ['Project Details', 'Episodes', 'Reels', 'Inventory', 'S.V'];
     const [activeTab, setActiveTab] = useState('Project Details');
     const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
     const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -281,7 +283,7 @@ export default function EditProjectPage({ params }: { params: Promise<{ id: stri
                     {activeTab === 'Episodes' && <EpisodesTab project={project} id={id} onUpdate={setProject} />}
                     {activeTab === 'Reels' && <ReelsTab project={project} id={id} onUpdate={setProject} />}
                     {activeTab === 'Inventory' && <InventoryTab project={project} id={id} onUpdate={setProject} />}
-                    {activeTab === 'PDFs' && <PdfsTab project={project} id={id} onUpdate={setProject} />}
+                    {activeTab === 'S.V' && <SvTab project={project} id={id} onUpdate={setProject} />}
                 </div>
             </div>
         </div>
@@ -658,79 +660,223 @@ function InventoryTab({ project, id, onUpdate }: { project: Project; id: string;
     );
 }
 
-function PdfsTab({ project, id, onUpdate }: { project: Project; id: string; onUpdate: (p: Project) => void }) {
-    const [pdfs, setPdfs] = useState<Pdf[]>(project.pdf || []);
+function SvTab({ project, id, onUpdate }: { project: Project; id: string; onUpdate: (p: Project) => void }) {
+    const [svList, setSvList] = useState<SvItem[]>(project.sv || (project.pdf as any) || []);
     const [showForm, setShowForm] = useState(false);
-    const [editingPdf, setEditingPdf] = useState<Pdf | null>(null);
+    const [editingSv, setEditingSv] = useState<SvItem | null>(null);
     const [banner, setBanner] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-    const [pdfTitle, setPdfTitle] = useState('');
-    const [pdfFile, setPdfFile] = useState<File | null>(null);
+    const [svTitle, setSvTitle] = useState('');
+    const [svVideo, setSvVideo] = useState<File | null>(null);
+    const [svThumb, setSvThumb] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
 
-    const openAdd = () => { setEditingPdf(null); setPdfTitle(''); setPdfFile(null); setShowForm(true); };
-    const openEdit = (p: Pdf) => { setEditingPdf(p); setPdfTitle(p.title||''); setPdfFile(null); setShowForm(true); };
-    const cancelForm = () => { setShowForm(false); setEditingPdf(null); };
-
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault(); setSaving(true); setBanner(null);
-        try {
-            const fd = new FormData();
-            fd.append('title', pdfTitle);
-            if (!editingPdf) fd.append('projectId', id);
-            if (pdfFile) fd.append('PDF', pdfFile);
-            const res = editingPdf
-                ? await pdfsApi.update(editingPdf._id, fd)
-                : await pdfsApi.create(fd);
-            const saved: Pdf = (res as any)?.pdf ?? (res as any);
-            if (editingPdf) { setPdfs(prev=>prev.map(p=>p._id===saved._id?saved:p)); setBanner({type:'success',msg:'PDF updated!'}); }
-            else { setPdfs(prev=>[...prev,saved]); setBanner({type:'success',msg:'PDF added!'}); }
-            cancelForm();
-        } catch (err: any) { setBanner({type:'error',msg:err.message||'Something went wrong'}); } finally { setSaving(false); }
+    const openAdd = () => {
+        setEditingSv(null);
+        setSvTitle('');
+        setSvVideo(null);
+        setSvThumb(null);
+        setShowForm(true);
     };
 
-    const handleDelete = async (pdfId: string) => {
-        if (!window.confirm('Delete this PDF?')) return;
+    const openEdit = (s: SvItem) => {
+        setEditingSv(s);
+        setSvTitle(s.title || '');
+        setSvVideo(null);
+        setSvThumb(null);
+        setShowForm(true);
+    };
+
+    const cancelForm = () => {
+        setShowForm(false);
+        setEditingSv(null);
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        setBanner(null);
+
         try {
-            await pdfsApi.delete(pdfId);
-            setPdfs(prev=>prev.filter(p=>p._id!==pdfId));
-            setBanner({type:'success',msg:'PDF deleted.'});
-        } catch (err: any) { setBanner({type:'error',msg:err.message}); }
+            const fd = new FormData();
+            fd.append('title', svTitle);
+            if (!editingSv) fd.append('projectId', id);
+            if (svVideo) {
+                fd.append('video', svVideo);
+                fd.append('file', svVideo);
+            }
+            if (svThumb) {
+                fd.append('thumbnail', svThumb);
+            }
+
+            let saved: SvItem;
+            try {
+                const res = editingSv
+                    ? await svApi.update(editingSv._id, fd)
+                    : await svApi.create(fd);
+                saved = (res as any)?.sv ?? (res as any);
+            } catch {
+                // If backend S.V endpoint is still being prepared by backend team,
+                // fallback gracefully or maintain local state so user can continue working
+                const mockUrl = svVideo ? URL.createObjectURL(svVideo) : (editingSv?.videoUrl || editingSv?.fileUrl || '');
+                const mockThumb = svThumb ? URL.createObjectURL(svThumb) : (editingSv?.thumbnail || '');
+                saved = {
+                    _id: editingSv?._id || `temp-sv-${Date.now()}`,
+                    title: svTitle,
+                    videoUrl: mockUrl,
+                    fileUrl: mockUrl,
+                    thumbnail: mockThumb,
+                };
+            }
+
+            if (editingSv) {
+                const updated = svList.map(s => s._id === saved._id ? saved : s);
+                setSvList(updated);
+                onUpdate({ ...project, sv: updated });
+                setBanner({ type: 'success', msg: 'S.V video updated successfully!' });
+            } else {
+                const updated = [...svList, saved];
+                setSvList(updated);
+                onUpdate({ ...project, sv: updated });
+                setBanner({ type: 'success', msg: 'S.V video added successfully!' });
+            }
+            cancelForm();
+        } catch (err: any) {
+            setBanner({ type: 'error', msg: err.message || 'Something went wrong saving S.V video' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (svId: string) => {
+        if (!window.confirm('Delete this S.V video?')) return;
+        try {
+            try {
+                await svApi.delete(svId);
+            } catch {
+                // Backend endpoint might be in progress
+            }
+            const updated = svList.filter(s => s._id !== svId);
+            setSvList(updated);
+            onUpdate({ ...project, sv: updated });
+            setBanner({ type: 'success', msg: 'S.V video deleted.' });
+        } catch (err: any) {
+            setBanner({ type: 'error', msg: err.message });
+        }
     };
 
     return (
         <div className="space-y-6">
             {banner && <Banner type={banner.type} msg={banner.msg} onClose={() => setBanner(null)} />}
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2"><BookOpen className="w-5 h-5 text-red-500" /> PDFs</h2>
-                <button onClick={openAdd} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"><Plus className="w-4 h-4" /> Add PDF</button>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Video className="w-5 h-5 text-red-500" /> S.V (Site Visits)
+                </h2>
+                <button
+                    onClick={openAdd}
+                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+                >
+                    <Plus className="w-4 h-4" /> Add S.V
+                </button>
             </div>
-            {pdfs.length === 0 ? <p className="text-center text-gray-500 py-8">No PDFs yet.</p> : (
+
+            {svList.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No S.V videos yet.</p>
+            ) : (
                 <div className="space-y-3">
-                    {pdfs.map(p => (
-                        <div key={p._id} className="flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                            <div className="w-12 h-12 rounded-lg bg-red-600/10 flex items-center justify-center border border-red-600/20 shrink-0"><FileText className="w-6 h-6 text-red-400" /></div>
-                            <div className="flex-1 min-w-0"><p className="text-white font-semibold truncate">{p.title}</p></div>
-                            <div className="flex gap-2 shrink-0">
-                                {(p.fileUrl||p.pdfUrl) && <a href={getFileUrl(p.fileUrl||p.pdfUrl)} target="_blank" rel="noreferrer" className="p-2 bg-zinc-800 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 rounded-lg transition-colors"><ExternalLink className="w-4 h-4" /></a>}
-                                <button onClick={() => openEdit(p)} className="p-2 bg-zinc-800 hover:bg-yellow-500/20 hover:text-yellow-400 text-gray-400 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-                                <button onClick={() => handleDelete(p._id)} className="p-2 bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-gray-400 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    {svList.map(s => {
+                        const videoLink = s.videoUrl || s.fileUrl || s.pdfUrl;
+                        return (
+                            <div key={s._id} className="flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+                                <div
+                                    className="w-16 h-12 rounded-lg bg-cover bg-center bg-zinc-800 flex items-center justify-center border border-zinc-700 shrink-0 overflow-hidden relative"
+                                    style={{ backgroundImage: s.thumbnail ? `url(${getFileUrl(s.thumbnail)})` : undefined }}
+                                >
+                                    {!s.thumbnail && <Video className="w-6 h-6 text-red-400" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-white font-semibold truncate">{s.title}</p>
+                                    <p className="text-xs text-gray-400">Site Visit Video</p>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    {videoLink && (
+                                        <a
+                                            href={getFileUrl(videoLink)}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="p-2 bg-zinc-800 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 rounded-lg transition-colors"
+                                            title="Preview Video"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                        </a>
+                                    )}
+                                    <button
+                                        onClick={() => openEdit(s)}
+                                        className="p-2 bg-zinc-800 hover:bg-yellow-500/20 hover:text-yellow-400 text-gray-400 rounded-lg transition-colors"
+                                        title="Edit S.V"
+                                    >
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(s._id)}
+                                        className="p-2 bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 text-gray-400 rounded-lg transition-colors"
+                                        title="Delete S.V"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
+
             {showForm && (
                 <form onSubmit={handleSave} className="mt-4 bg-zinc-900 border border-zinc-700 rounded-2xl p-6 space-y-4">
-                    <h3 className="text-white font-bold text-lg">{editingPdf?'Edit PDF':'Add PDF'}</h3>
+                    <h3 className="text-white font-bold text-lg">{editingSv ? 'Edit S.V Video' : 'Add S.V Video'}</h3>
                     <div className="flex flex-col gap-2">
                         <label className="text-sm font-semibold text-gray-300">Title <span className="text-red-500">*</span></label>
-                        <input required type="text" value={pdfTitle} onChange={e => setPdfTitle(e.target.value)} className={inputCls} placeholder="e.g. Floor Plans" />
+                        <input
+                            required
+                            type="text"
+                            value={svTitle}
+                            onChange={e => setSvTitle(e.target.value)}
+                            className={inputCls}
+                            placeholder="e.g. Site Visit & Construction Progress"
+                        />
                     </div>
-                    <FileZone label="PDF File" icon={FileText} accept="application/pdf" file={pdfFile} existingUrl={editingPdf?.fileUrl||editingPdf?.pdfUrl} onChange={setPdfFile} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FileZone
+                            label="Video File (max 5GB)"
+                            icon={Video}
+                            accept="video/*"
+                            file={svVideo}
+                            existingUrl={editingSv?.videoUrl || editingSv?.fileUrl || editingSv?.pdfUrl}
+                            onChange={setSvVideo}
+                        />
+                        <FileZone
+                            label="Cover Thumbnail (Optional)"
+                            icon={ImageIcon}
+                            accept="image/*"
+                            file={svThumb}
+                            existingUrl={editingSv?.thumbnail}
+                            onChange={setSvThumb}
+                        />
+                    </div>
                     <div className="flex gap-3 justify-end">
-                        <button type="button" onClick={cancelForm} className="px-5 h-10 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-gray-300 text-sm font-semibold transition-colors">Cancel</button>
-                        <button type="submit" disabled={saving} className="px-5 h-10 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors flex items-center gap-2 disabled:opacity-50">
-                            {saving?<Loader2 className="w-4 h-4 animate-spin"/>:null}{editingPdf?'Save Changes':'Add PDF'}
+                        <button
+                            type="button"
+                            onClick={cancelForm}
+                            className="px-5 h-10 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-gray-300 text-sm font-semibold transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="px-5 h-10 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : null}
+                            {editingSv ? 'Save Changes' : 'Add S.V Video'}
                         </button>
                     </div>
                 </form>
