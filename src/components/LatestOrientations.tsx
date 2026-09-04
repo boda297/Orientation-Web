@@ -43,7 +43,6 @@ export default function LatestOrientations() {
     const container = scrollContainerRef.current;
     if (!container || orientations.length === 0) return;
 
-    let intervalId: NodeJS.Timeout;
     let isHovered = false;
 
     const handleMouseEnter = () => isHovered = true;
@@ -71,7 +70,7 @@ export default function LatestOrientations() {
       }
     };
 
-    intervalId = setInterval(autoScroll, 3000);
+    const intervalId = setInterval(autoScroll, 3000);
 
     return () => {
       container.removeEventListener('mouseenter', handleMouseEnter);

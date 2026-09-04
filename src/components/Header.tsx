@@ -119,12 +119,6 @@ export default function Header() {
               >
                 About Us
               </Link>
-              <Link
-                href="/checkout"
-                className="text-white hover:text-red-600 transition-colors text-sm lg:text-base whitespace-nowrap"
-              >
-                Pricing
-              </Link>
             </nav>
 
             {/* Right section (Search + Bookmark + Auth + Mobile Menu) */}
@@ -273,13 +267,6 @@ export default function Header() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 About Us
-              </Link>
-              <Link
-                href="/checkout"
-                className="block text-white hover:text-red-600 transition-colors py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Pricing
               </Link>
               {/* Mobile Auth Buttons */}
               {hasMounted && (

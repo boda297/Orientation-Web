@@ -42,7 +42,6 @@ export default function TrendingProjects() {
     const container = scrollContainerRef.current;
     if (!container || projects.length === 0) return;
 
-    let intervalId: NodeJS.Timeout;
     let isHovered = false;
 
     const handleMouseEnter = () => isHovered = true;
@@ -70,7 +69,7 @@ export default function TrendingProjects() {
       }
     };
 
-    intervalId = setInterval(autoScroll, 3000);
+    const intervalId = setInterval(autoScroll, 3000);
 
     return () => {
       container.removeEventListener('mouseenter', handleMouseEnter);

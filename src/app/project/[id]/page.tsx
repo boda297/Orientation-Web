@@ -425,8 +425,6 @@ export default function ProjectDetailsPage({
 
   // Fetch project data
   useEffect(() => {
-    let videoTimeoutId: NodeJS.Timeout | null = null;
-
     const fetchProject = async () => {
       try {
         if (!resolvedParams?.id) {
@@ -529,13 +527,6 @@ export default function ProjectDetailsPage({
       setError("Invalid project ID");
       setLoading(false);
     }
-
-    // Cleanup timeout on unmount
-    return () => {
-      if (videoTimeoutId) {
-        clearTimeout(videoTimeoutId);
-      }
-    };
   }, [resolvedParams?.id]);
 
   // Lazy-load related projects ONLY when the "Project" tab is activated
