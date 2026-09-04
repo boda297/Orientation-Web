@@ -145,6 +145,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeSubscription, setActiveSubscription] = useState<any | null>(null);
+  const [subCheckError, setSubCheckError] = useState(false);
 
   // Check auth and current subscription on mount
   useEffect(() => {
@@ -159,7 +160,11 @@ export default function CheckoutPage() {
             setActiveSubscription(res.subscription);
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          // Could not verify subscription status — surface a soft warning so the
+          // user knows their subscription state couldn't be confirmed.
+          setSubCheckError(true);
+        });
     }
   }, []);
 
@@ -189,9 +194,12 @@ export default function CheckoutPage() {
     fetchPlans();
   }, []);
 
+  // Strict: only return the matching plan or null. Never silently fall back to
+  // plans[0] as that could submit the wrong plan to Paymob without the user noticing.
   const selectedPlan =
-    plans.find((p) => p._id === selectedPlanId) ||
-    (selectedPlanId === "free" ? null : plans[0]);
+    selectedPlanId === "free"
+      ? null
+      : (plans.find((p) => p._id === selectedPlanId) ?? null);
 
   // Checkout handler (Preserves 100% of Paymob logic)
   const handlePaymentSubmit = async (e: React.FormEvent) => {
@@ -626,6 +634,29 @@ export default function CheckoutPage() {
                 {t.step2Subtitle}
               </p>
             </div>
+
+            {subCheckError && !activeSubscription && !errorMessage && (
+              <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 flex-shrink-0 text-amber-400 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <p className="text-amber-200 text-xs">
+                  {lang === "ar"
+                    ? "تعذّر التحقق من حالة اشتراكك حالياً. إذا كنت مشتركاً بالفعل، فلديك وصول كامل للمحتوى."
+                    : "Could not verify your subscription status. If you are already subscribed, you have full access to all content."}
+                </p>
+              </div>
+            )}
 
             {activeSubscription && !errorMessage && (
               <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs flex items-start gap-3">

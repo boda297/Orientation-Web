@@ -5,6 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { subscriptionApi } from '@/lib/api/subscription.api';
+import { clearApiCache } from '@/lib/http/httpClient';
 
 function SuccessContent() {
   const params = useSearchParams();
@@ -27,19 +29,36 @@ function SuccessContent() {
     : null;
 
   useEffect(() => {
+    let resolved: 'success' | 'pending' | 'failed';
+
     if (success === 'true' && pending === 'false') {
-      setStatus('success');
+      resolved = 'success';
     } else if (pending === 'true') {
-      setStatus('pending');
+      resolved = 'pending';
     } else if (success === 'false' || txnCode === 'DECLINED' || txnCode === 'BLOCKED') {
-      setStatus('failed');
+      resolved = 'failed';
     } else if (success !== null) {
-      // Default based on success flag
-      setStatus(success === 'true' ? 'success' : 'failed');
+      resolved = success === 'true' ? 'success' : 'failed';
     } else {
-      setStatus('success');
+      resolved = 'success';
+    }
+
+    setStatus(resolved);
+
+    // After a confirmed successful payment, verify subscription and bust all caches
+    // so project pages immediately reflect hasAccess=true for the newly subscribed user.
+    if (resolved === 'success') {
+      // 1. Clear all cached API responses (projects cache contains stale hasAccess=false)
+      clearApiCache();
+
+      // 2. Confirm subscription is active on the backend (best-effort, non-blocking)
+      subscriptionApi.getMySubscription().catch(() => {
+        // Silently ignore — the webhook may not have fired yet; the cache bust alone
+        // ensures the next project visit makes a fresh hasAccess-aware request.
+      });
     }
   }, [params, success, pending, txnCode]);
+
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col justify-between selection:bg-[#ff0000] selection:text-white">

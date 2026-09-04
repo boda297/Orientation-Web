@@ -40,7 +40,9 @@ export function ProjectTabs({
     }
 
     // 2. Unsubscribed user check -> Show Subscribe Modal
-    if (!project?.hasAccess || item?.locked) {
+    // Access is controlled solely by project.hasAccess (backend subscription check).
+    // The backend does not use an item-level `locked` field.
+    if (!project?.hasAccess) {
       const title =
         item?.title ||
         item?.fileName ||

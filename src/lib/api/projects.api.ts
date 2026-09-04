@@ -27,13 +27,11 @@ export async function getProjects(params?: QueryProjectsParams): Promise<Project
   }
 }
 
-/**
- * Get single project by ID with populated references
- */
+
 export async function getProjectById(id: string): Promise<Project> {
   try {
     const response = await httpClient.get<Project>(`/projects/${id}`, {
-      cacheTTL: 30 * 60 * 1000, // 30 minutes
+      cacheTTL: 2 * 60 * 1000, // 2-minute cache — short enough for hasAccess accuracy
     });
     return response.data;
   } catch (error) {
@@ -68,6 +66,22 @@ export async function getLatestProjects(limit: number = 10): Promise<Project[]> 
     return Array.isArray(response.data) ? response.data : ((response.data as any)?.projects || []);
   } catch (error) {
     throw new Error(extractErrorMessage(error, 'Failed to fetch latest projects'));
+  }
+}
+
+/**
+ * Get free projects — GET /projects/free
+ * Returns only projects marked as free (isFree=true or status='FREE').
+ */
+export async function getFreeProjects(limit: number = 10, page: number = 1): Promise<Project[]> {
+  try {
+    const response = await httpClient.get<Project[]>('/projects/free', {
+      params: { limit, page },
+      cacheTTL: 30 * 60 * 1000, // 30 minutes
+    });
+    return Array.isArray(response.data) ? response.data : ((response.data as any)?.projects || (response.data as any)?.data || []);
+  } catch (error) {
+    throw new Error(extractErrorMessage(error, 'Failed to fetch free projects'));
   }
 }
 
@@ -263,6 +277,7 @@ export const projectsApi = {
   get: getProjectById,
   getFeatured: getFeaturedProjects,
   getLatest: getLatestProjects,
+  getFree: getFreeProjects,
   getUpcoming: getUpcomingProjects,
   getTop10: getTop10Projects,
   getByLocation: getProjectsByLocation,

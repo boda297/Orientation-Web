@@ -2,115 +2,37 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useHomepageData, HomepageProject } from '@/lib/hooks/useHomepageData';
+import { projectsApi } from '@/lib/api/projects.api';
+import type { HomepageProject } from '@/lib/hooks/useHomepageData';
 import { getFileUrl } from '@/lib/http/url';
 
-/* ──────────────────────────────────────────────────────────────
-   SUPER CRISP RETINA LUXURY REAL ESTATE SHOWCASES (1200px / Fast)
-   ────────────────────────────────────────────────────────────── */
-const HIGH_RES_IMAGES = [
-  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=88',
-  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=88',
-  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=88',
-  'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1200&q=88',
-  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=88',
-  'https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=1200&q=88',
-];
-
-const SHOWCASE_PROJECTS: HomepageProject[] = [
-  {
-    _id: 'free-1',
-    title: 'The Median Residences',
-    location: 'New Cairo',
-    projectThumbnailUrl: HIGH_RES_IMAGES[0],
-    heroVideoUrl: '',
-    developer: { name: 'TMG Developments', logoUrl: '' },
-    status: 'FREE',
-    published: true,
-  },
-  {
-    _id: 'free-2',
-    title: 'Direction White',
-    location: 'North Coast',
-    projectThumbnailUrl: HIGH_RES_IMAGES[1],
-    heroVideoUrl: '',
-    developer: { name: 'City Edge Developments', logoUrl: '' },
-    status: 'FREE',
-    published: true,
-  },
-  {
-    _id: 'free-3',
-    title: 'Il Monte Galala',
-    location: 'Ain Sokhna',
-    projectThumbnailUrl: HIGH_RES_IMAGES[2],
-    heroVideoUrl: '',
-    developer: { name: 'Tatweer Misr', logoUrl: '' },
-    status: 'FREE',
-    published: true,
-  },
-  {
-    _id: 'free-4',
-    title: 'Swan Lake Residences',
-    location: 'New Cairo',
-    projectThumbnailUrl: HIGH_RES_IMAGES[3],
-    heroVideoUrl: '',
-    developer: { name: 'Hassan Allam Properties', logoUrl: '' },
-    status: 'FREE',
-    published: true,
-  },
-  {
-    _id: 'free-5',
-    title: 'Zed East Luxury',
-    location: 'New Cairo',
-    projectThumbnailUrl: HIGH_RES_IMAGES[4],
-    heroVideoUrl: '',
-    developer: { name: 'Ora Developers', logoUrl: '' },
-    status: 'FREE',
-    published: true,
-  },
-  {
-    _id: 'free-6',
-    title: 'Seashore Ras El Hekma',
-    location: 'North Coast',
-    projectThumbnailUrl: HIGH_RES_IMAGES[5],
-    heroVideoUrl: '',
-    developer: { name: 'Hyde Park Developments', logoUrl: '' },
-    status: 'FREE',
-    published: true,
-  },
-];
-
 export default function FreeOrientations() {
-  const { allProjects, loading: contextLoading } = useHomepageData();
-  const [freeProjects, setFreeProjects] = useState<HomepageProject[]>(SHOWCASE_PROJECTS);
+  const [freeProjects, setFreeProjects] = useState<HomepageProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [centerIndex, setCenterIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [autoplayKey, setAutoplayKey] = useState(0);
 
-  /* ── Load projects: Blend live API projects with high-res showcases ── */
+  /* ── Fetch directly from GET /projects/free?limit=10 ── */
   useEffect(() => {
-    if (!contextLoading) {
-      const apiProjects = allProjects.filter(
-        (p) => (p.published === true || p.published === undefined) && p.status !== 'PLANNING'
-      );
+    let cancelled = false;
 
-      let list = [...apiProjects];
-      if (list.length === 0) {
-        list = SHOWCASE_PROJECTS;
-      } else if (list.length < 6) {
-        for (const showcase of SHOWCASE_PROJECTS) {
-          if (list.length >= 6) break;
-          if (!list.some((p) => p.title === showcase.title)) {
-            list.push(showcase);
-          }
-        }
+    const fetchFree = async () => {
+      setLoading(true);
+      try {
+        const data = await projectsApi.getFree(10);
+        if (cancelled) return;
+        setFreeProjects(Array.isArray(data) ? data as HomepageProject[] : []);
+      } catch {
+        if (!cancelled) setFreeProjects([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    };
 
-      setFreeProjects(list.length > 0 ? list : SHOWCASE_PROJECTS);
-      setLoading(false);
-    }
-  }, [allProjects, contextLoading]);
+    fetchFree();
+    return () => { cancelled = true; };
+  }, []);
 
   /* ── Reset Autoplay Helper ── */
   const resetAutoplay = useCallback(() => {
@@ -143,12 +65,11 @@ export default function FreeOrientations() {
     return () => clearTimeout(timer);
   }, [freeProjects.length, isHovered, autoplayKey, centerIndex]);
 
-  /* ── High-Quality Thumbnail helper ── */
-  const getThumbnailUrl = (project?: HomepageProject, fallbackIdx: number = 0) => {
-    if (!project) return HIGH_RES_IMAGES[0];
+  /* ── Thumbnail helper ── */
+  const getThumbnailUrl = (project?: HomepageProject) => {
+    if (!project) return '';
     const url = getFileUrl(project.projectThumbnailUrl);
-    if (url && !url.includes('placeholder') && !url.includes('aida-public') && url.trim() !== '') return url;
-    return HIGH_RES_IMAGES[fallbackIdx % HIGH_RES_IMAGES.length];
+    return url && url.trim() !== '' ? url : '';
   };
 
   /* ── Ultra-Smooth 0.75s 3D Position with GPU Optimization ── */
@@ -221,11 +142,29 @@ export default function FreeOrientations() {
     }
   };
 
-  if (loading || freeProjects.length === 0) {
+  if (loading) {
     return (
       <section className="py-8 bg-black w-full">
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500" />
+        </div>
+      </section>
+    );
+  }
+
+  if (freeProjects.length === 0) {
+    return (
+      <section className="py-8 md:py-14 bg-black w-full">
+        <div className="text-center px-5">
+          <h2
+            className="text-2xl md:text-4xl lg:text-5xl text-white mb-3"
+            style={{ fontFamily: 'Inter, sans-serif', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}
+          >
+            Free Orientations
+          </h2>
+          <p className="text-zinc-500 text-sm md:text-base mt-4">
+            No free projects available at the moment.
+          </p>
         </div>
       </section>
     );
@@ -352,7 +291,7 @@ export default function FreeOrientations() {
                         isCenter ? 'group-hover/center:scale-105' : ''
                       }`}
                       style={{
-                        backgroundImage: `url(${getThumbnailUrl(project, index)})`,
+                        backgroundImage: `url(${getThumbnailUrl(project)})`,
                         transform: 'translateZ(0)',
                       }}
                     />

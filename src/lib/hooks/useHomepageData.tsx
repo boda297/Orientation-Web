@@ -12,7 +12,7 @@ export interface HomepageProject {
   projectThumbnailUrl?: string;
   heroVideoUrl?: string;
   logoUrl?: string;
-  developer?: { _id?: string; name: string; logoUrl?: string };
+  developer?: { _id?: string; name: string; logoUrl?: string } | string | any;
   trendingScore?: number;
   rank?: number;
   episodes?: any[];
@@ -71,24 +71,14 @@ export function HomepageDataProvider({ children }: { children: ReactNode }) {
 
         if (cancelled) return;
 
-        const rawFeaturedList = (Array.isArray(featured) ? featured : []) as HomepageProject[];
-        
-        // Fetch detailed data for featured projects in parallel (to get episodes/locked status)
-        const detailedFeatured = await Promise.all(
-          rawFeaturedList.map(async (fp) => {
-            try {
-              const full = await projectsApi.get(fp._id);
-              return { ...fp, ...full };
-            } catch {
-              return fp;
-            }
-          })
-        );
-
-        if (cancelled) return;
+        // Use featured data as-is — the /projects/featured endpoint already returns
+        // the fields needed for the Hero carousel (title, thumbnail, heroVideoUrl, developer).
+        // Individual GET /projects/:id calls are deliberately removed here to prevent
+        // burst 429 rate-limit errors on every homepage load.
+        const featuredList = (Array.isArray(featured) ? featured : []) as HomepageProject[];
 
         setData({
-          featuredProjects: detailedFeatured,
+          featuredProjects: featuredList,
           allProjects: (Array.isArray(all) ? all : []) as HomepageProject[],
           top10Projects: (Array.isArray(top10) ? top10 : []) as HomepageProject[],
           upcomingProjects: (Array.isArray(upcoming) ? upcoming : []) as HomepageProject[],

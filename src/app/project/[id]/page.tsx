@@ -89,11 +89,31 @@ export default function ProjectDetailsPage({
   const [isSubscribeModalClosing, setIsSubscribeModalClosing] = useState(false);
   const [lockedItemName, setLockedItemName] = useState("");
   const [hasMounted, setHasMounted] = useState(false);
+  const hasAutoOpenedSubscribeModalRef = useRef(false);
   const router = useRouter();
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  // Reset auto-open tracking if navigating between different projects
+  useEffect(() => {
+    hasAutoOpenedSubscribeModalRef.current = false;
+  }, [resolvedParams.id]);
+
+  // Auto-show Subscribe Modal if the user is not subscribed (pure logic, no design change)
+  useEffect(() => {
+    if (!project || hasAutoOpenedSubscribeModalRef.current) return;
+
+    if (project.hasAccess !== true) {
+      hasAutoOpenedSubscribeModalRef.current = true;
+      const timer = setTimeout(() => {
+        setShowSubscribeModal(true);
+      }, 700);
+
+      return () => clearTimeout(timer);
+    }
+  }, [project]);
 
   const requireAuth = (action: () => void) => {
     if (!hasMounted) return; // Prevent clicks before hydration
@@ -119,8 +139,9 @@ export default function ProjectDetailsPage({
     }
 
     // 2. Unsubscribed user check -> Show Subscribe Modal
-    const isLocked = !project?.hasAccess || !!item?.locked;
-    if (isLocked) {
+    // Access is controlled by project.hasAccess (set by backend based on active subscription).
+    // The backend does not use an item-level `locked` field.
+    if (!project?.hasAccess) {
       const itemTitle =
         item?.title ||
         item?.fileName ||
@@ -349,7 +370,7 @@ export default function ProjectDetailsPage({
       if (episode) {
         if (!tokenStorage.isValid()) {
           setShowAuthModal(true);
-        } else if (!project.hasAccess || episode.locked) {
+        } else if (!project.hasAccess) {
           setLockedItemName(
             `Episode: "${episode.title || `Episode ${episode.episodeOrder || ""}`}"`,
           );

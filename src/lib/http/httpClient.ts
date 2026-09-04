@@ -151,8 +151,7 @@ rawClient.interceptors.response.use(
     const shouldSkipRefresh = original?.skipAuthRefresh || isAuthRoute;
 
     if (error.response?.status === 401 && original && !original._retry && !shouldSkipRefresh) {
-      const refreshToken = tokenStorage.getRefreshToken();
-      if (!refreshToken) {
+      if (!tokenStorage.canRefresh()) {
         return Promise.reject(error);
       }
 

@@ -7,6 +7,7 @@ export interface ITokenStorage {
   setTokens(accessToken: string, refreshToken: string): void;
   clear(): void;
   isValid(): boolean;
+  canRefresh(): boolean;
   getUserPayload(): any | null;
 }
 
@@ -126,7 +127,9 @@ class CookieTokenStorage implements ITokenStorage {
     return parseJwt(token);
   }
 
-  // Checks if a valid, non-expired access token is present in cookies
+  // Checks if a valid, non-expired access token is present in cookies.
+  // Returns false when the access token is expired, even if a refresh token exists.
+  // This is the correct UI-gating check — use canRefresh() for interceptor logic.
   isValid(): boolean {
     const token = this.getAccessToken();
     if (!token || token === 'undefined' || token === 'null' || token.trim() === '') {
@@ -137,11 +140,18 @@ class CookieTokenStorage implements ITokenStorage {
       // Check if token is expired (with 10s buffer)
       const isExpired = Date.now() >= (payload.exp * 1000) - 10000;
       if (isExpired) {
-        // Token expired, check if we have a refresh token
-        return !!this.getRefreshToken();
+        // Access token is expired — user is not currently authenticated from the UI's perspective.
+        // The httpClient interceptor will silently refresh on the next API call if canRefresh() is true.
+        return false;
       }
     }
     return true;
+  }
+
+  // Returns true if a refresh token is available, meaning the interceptor can attempt
+  // a silent token refresh on the next API call even when isValid() is false.
+  canRefresh(): boolean {
+    return !!this.getRefreshToken();
   }
 }
 

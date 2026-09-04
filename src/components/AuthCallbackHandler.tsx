@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { tokenStorage } from "@/lib/http/tokenStorage";
+import { clearApiCache } from "@/lib/http/httpClient";
 
 export default function AuthCallbackHandler() {
   const searchParams = useSearchParams();
@@ -13,8 +14,13 @@ export default function AuthCallbackHandler() {
     const refreshToken = searchParams.get("refreshToken");
 
     if (token) {
-      // 1. Save access and refresh tokens in both cookie and localStorage
+      // 1. Save access and refresh tokens in cookies
       tokenStorage.setTokens(token, refreshToken || token);
+
+      // 2. Bust the API cache so subsequent requests pick up the new auth context
+      //    (e.g. hasAccess on project pages reflects the logged-in user immediately)
+      clearApiCache();
+
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("accessToken", token);
@@ -26,7 +32,7 @@ export default function AuthCallbackHandler() {
         }
         window.dispatchEvent(new Event("auth-change"));
 
-        // 2. Clean URL query parameters smoothly
+        // 3. Clean URL query parameters smoothly
         const url = new URL(window.location.href);
         url.searchParams.delete("token");
         url.searchParams.delete("accessToken");
