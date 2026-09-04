@@ -32,3 +32,4 @@ export * from './files.api';
 export * from './watchHistory.api';
 export * from './subscription-plan.api';
 export * from './subscription.api';
+export * from './sv.api';

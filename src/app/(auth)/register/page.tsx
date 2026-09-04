@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, EyeOff, Eye, Loader2, User } from "lucide-react";
 import AuthLogo from "@/components/AuthLogo";
+import SocialAuthButtons from "@/components/SocialAuthButtons";
 import { register, resendVerification } from "@/lib/api/auth.api";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
@@ -139,7 +140,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-6 w-full h-14 bg-white text-black hover:bg-gray-200 rounded-full font-bold flex items-center justify-center transition-colors disabled:opacity-50"
+          className="mt-4 w-full h-14 bg-[#ff0000] hover:bg-[#d40000] text-white rounded-2xl font-semibold flex items-center justify-center transition-all duration-200 shadow-md shadow-red-950/40 active:scale-[0.99] disabled:opacity-60 cursor-pointer"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -147,6 +148,20 @@ export default function RegisterPage() {
             "Create an account"
           )}
         </button>
+
+        {/* Divider */}
+        <div className="relative my-4 flex items-center justify-center">
+          <div className="w-full border-t border-zinc-800" />
+          <span className="absolute bg-black px-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            or
+          </span>
+        </div>
+
+        {/* Social Logins (Apple, Google, Facebook) */}
+        <SocialAuthButtons
+          actionText="signup"
+          onError={(msg) => setError(msg)}
+        />
 
         <p className="text-center text-sm text-gray-400 mt-4">
           Already have an account?{" "}

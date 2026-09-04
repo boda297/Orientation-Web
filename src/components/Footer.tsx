@@ -73,8 +73,8 @@ export default function Footer() {
             <p className="text-gray-400 mb-3 text-sm md:text-base">
               Orientation is the first video platform designed for the real estate industry. Developers showcase their projects, and brokers & sales agents can access on-demand orientations anytime, anywhere. Save time, focus on the right projects, and stay ahead in the market.
             </p>
-            <p className="text-white mb-2 text-sm md:text-base">Email us: <a href="mailto:marketing@orientationre.com" className="text-red-600 hover:underline">marketing@orientationre.com</a></p>
-            <p className="text-white text-sm md:text-base">Helpline number: <span className="font-bold">+(20) 10 2421 4331</span></p>
+            <p className="text-white mb-2 text-sm md:text-base">Email us: <a href="mailto:orientationsupport@gmail.com" className="text-red-600 hover:underline">orientationsupport@gmail.com</a></p>
+            <p className="text-white text-sm md:text-base">Helpline number: <span className="font-bold">+(20) 10 4217 5130</span></p>
           </div>
 
           <div>

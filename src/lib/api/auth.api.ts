@@ -1,6 +1,7 @@
 import { httpClient } from "../http/httpClient";
 import { extractErrorMessage } from "../http/apiError";
 import { tokenStorage } from "../http/tokenStorage";
+import { getApiUrl } from "../http/url";
 import type {
   RegisterPayload,
   RegisterResponse,
@@ -70,21 +71,46 @@ export async function login(
   payload: LoginPayload,
 ): Promise<AuthTokensResponse> {
   try {
-    const response = await httpClient.post<AuthTokensResponse>(
+    const response = await httpClient.post<any>(
       "/auth/login",
       payload,
       { skipAuthRefresh: true },
     );
-    if (response.data?.accessToken && response.data?.refreshToken) {
+    const data = response.data?.data || response.data;
+    const accessToken = data?.accessToken || data?.token || response.data?.accessToken || response.data?.token;
+    const refreshToken = data?.refreshToken || response.data?.refreshToken || accessToken;
+    
+    if (accessToken) {
       tokenStorage.setTokens(
-        response.data.accessToken,
-        response.data.refreshToken,
+        accessToken,
+        refreshToken || accessToken,
       );
     }
-    console.log("Login response:", response.data);
-    return response.data;
+    return data || response.data;
   } catch (error) {
     throw new Error(extractErrorMessage(error, "Login failed"));
+  }
+}
+
+// 🌐 Google Web OAuth Login — Redirects to /auth/google/login
+export function getGoogleLoginUrl(): string {
+  return getApiUrl("/auth/google/login");
+}
+
+export function loginWithGoogle(): void {
+  if (typeof window !== "undefined") {
+    window.location.href = getGoogleLoginUrl();
+  }
+}
+
+// 🌐 Apple Web OAuth Login — Redirects to /auth/apple/login
+export function getAppleLoginUrl(): string {
+  return getApiUrl("/auth/apple/login");
+}
+
+export function loginWithApple(): void {
+  if (typeof window !== "undefined") {
+    window.location.href = getAppleLoginUrl();
   }
 }
 
@@ -179,6 +205,10 @@ export const authApi = {
   verifyEmail,
   resendVerification,
   login,
+  loginWithGoogle,
+  getGoogleLoginUrl,
+  loginWithApple,
+  getAppleLoginUrl,
   signOut,
   logout,
   forgotPassword,
@@ -186,4 +216,3 @@ export const authApi = {
   resetPassword,
   refreshToken: refreshAuthToken,
 };
-

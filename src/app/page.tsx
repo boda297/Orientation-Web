@@ -1,5 +1,6 @@
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
+import FreeOrientations from '@/components/FreeOrientations';
 import ContinueWatch from '@/components/ContinueWatch';
 import LatestOrientations from '@/components/LatestOrientations';
 import TrendingProjects from '@/components/TrendingProjects';
@@ -22,6 +23,7 @@ export default function Home() {
       <HomepageDataProvider>
         <main>
           <Hero />
+          <FreeOrientations />
           <LatestOrientations />
           <ContinueWatch />
           <TrendingProjects />

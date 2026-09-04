@@ -9,6 +9,7 @@ import Footer from '@/components/Footer';
 import ChatWidget from '@/components/ChatWidget';
 import { projectsApi } from '@/lib/api/projects.api';
 import { getFileUrl } from '@/lib/http/url';
+import { formatLocationName } from '@/lib/locationUtils';
 import type { IProject } from '@/types/projects.types';
 
 interface ProjectCardProps {
@@ -188,7 +189,8 @@ function ProjectCard({ project }: ProjectCardProps) {
 
 export default function AreaProjectsPage({ params }: { params: Promise<{ area: string }> }) {
   const resolvedParams = use(params);
-  const areaName = decodeURIComponent(resolvedParams.area);
+  const rawAreaName = decodeURIComponent(resolvedParams.area);
+  const formattedAreaTitle = formatLocationName(rawAreaName) || rawAreaName;
 
   const [projects, setProjects] = useState<IProject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -198,54 +200,69 @@ export default function AreaProjectsPage({ params }: { params: Promise<{ area: s
     const fetchProjects = async () => {
       try {
         setLoading(true);
-        let data: any[] = [];
-        try {
-          const res = await projectsApi.getByLocation(areaName);
-          if (Array.isArray(res)) {
-            data = res;
-          }
-        } catch (locationError) {
-          console.warn(`Location endpoint failed, trying to fetch all projects and filter:`, locationError);
-          // If location endpoint fails, fetch all projects and filter by location
-          const allProjects = await projectsApi.list();
-          if (Array.isArray(allProjects)) {
-            const areaNameLower = areaName.toLowerCase();
-            data = allProjects.filter((project: any) => {
-              const projectLocation = project.location?.toLowerCase() || '';
-              return (
-                projectLocation === areaNameLower ||
-                projectLocation.includes(areaNameLower) ||
-                areaNameLower.includes(projectLocation) ||
-                projectLocation.replace(/\s+/g, '') === areaNameLower.replace(/\s+/g, '')
-              );
-            });
-          }
+
+        // 1. Fetch all projects from API (cached/fast)
+        const allProjectsRes = await projectsApi.list().catch(() => []);
+        let allProjectsList: any[] = [];
+        if (Array.isArray(allProjectsRes)) {
+          allProjectsList = allProjectsRes;
+        } else if (allProjectsRes && typeof allProjectsRes === 'object') {
+          allProjectsList =
+            (allProjectsRes as any).data ||
+            (allProjectsRes as any).projects ||
+            (allProjectsRes as any).results ||
+            [];
         }
 
-        if (Array.isArray(data)) {
-          const publishedProjects = data.filter((p: any) => p.published === true || p.published === undefined);
-          setProjects(publishedProjects as any);
-        } else {
-          setProjects([]);
-        }
+        const normalizedTarget = formatLocationName(rawAreaName).toLowerCase();
+        const compactTarget = rawAreaName.toLowerCase().replace(/\s+/g, '');
+
+        // 2. Filter projects using the same robust normalization as /areas
+        const matched = allProjectsList.filter((project: any) => {
+          if (!project || !project.location) return false;
+
+          const rawLoc = String(project.location).trim();
+          const formattedLoc = formatLocationName(rawLoc).toLowerCase();
+          const compactLoc = rawLoc.toLowerCase().replace(/\s+/g, '');
+
+          return (
+            formattedLoc === normalizedTarget ||
+            compactLoc === compactTarget ||
+            formattedLoc.includes(normalizedTarget) ||
+            normalizedTarget.includes(formattedLoc) ||
+            compactLoc.includes(compactTarget) ||
+            compactTarget.includes(compactLoc)
+          );
+        });
+
+        // 3. Filter published
+        const publishedProjects = matched.filter(
+          (p: any) => p.published === true || p.published === undefined
+        );
+
+        setProjects(publishedProjects as any);
       } catch (error) {
-        console.error(`Error fetching projects for ${areaName}:`, error);
+        console.error(`Error fetching projects for ${rawAreaName}:`, error);
         setProjects([]);
       } finally {
         setLoading(false);
       }
     };
 
-    if (areaName) {
+    if (rawAreaName) {
       fetchProjects();
     }
-  }, [areaName]);
+  }, [rawAreaName]);
 
   // Filter projects by search query
-  const filteredProjects = projects.filter((project) =>
-    project.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    project.location?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProjects = projects.filter((project) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    const titleMatch = (project.title || '').toLowerCase().includes(query);
+    const locMatch = (project.location || '').toLowerCase().includes(query);
+    const formattedLocMatch = formatLocationName(project.location || '').toLowerCase().includes(query);
+    return titleMatch || locMatch || formattedLocMatch;
+  });
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -263,7 +280,7 @@ export default function AreaProjectsPage({ params }: { params: Promise<{ area: s
                 </svg>
                 Back to Areas
               </Link>
-              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Projects in {areaName}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Projects in {formattedAreaTitle}</h1>
             </div>
 
             {/* Search Bar */}

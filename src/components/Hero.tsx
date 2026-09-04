@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useHomepageData } from "@/lib/hooks/useHomepageData";
 import { getFileUrl } from "@/lib/http/url";
+import { projectsApi } from "@/lib/api/projects.api";
 
 interface FeaturedProject {
   _id: string;
@@ -13,6 +14,10 @@ interface FeaturedProject {
   projectThumbnailUrl?: string;
   heroVideoUrl?: string;
   logoUrl?: string;
+  status?: string;
+  hasAccess?: boolean;
+  isFree?: boolean;
+  episodes?: Array<{ _id?: string; title?: string; locked?: boolean }>;
 }
 
 export default function Hero() {
@@ -28,14 +33,31 @@ export default function Hero() {
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const sectionRef = useRef<HTMLElement | null>(null);
 
-  // Derive featured projects from context (0 network requests)
+  // Derive featured projects from context and ensure episodes are loaded
   useEffect(() => {
     if (!contextLoading) {
       const published = rawFeatured
-        .filter((p: any) => p.published === true)
+        .filter((p: any) => p.published === true || p.published === undefined)
         .slice(0, 3) as FeaturedProject[];
       setFeaturedProjects(published);
       setLoading(false);
+
+      published.forEach((proj) => {
+        if (!proj.episodes || proj.episodes.length === 0) {
+          projectsApi
+            .get(proj._id)
+            .then((fullProj) => {
+              if (fullProj && fullProj.episodes) {
+                setFeaturedProjects((prev) =>
+                  prev.map((p) =>
+                    p._id === proj._id ? { ...p, ...fullProj } : p
+                  )
+                );
+              }
+            })
+            .catch(() => {});
+        }
+      });
     }
   }, [rawFeatured, contextLoading]);
 
@@ -44,7 +66,7 @@ export default function Hero() {
     videoRefs.current.forEach((video, index) => {
       if (!video) return;
       if (index === currentVideoIndex) {
-        video.play().catch(() => {});
+        video.play().catch(() => { });
       } else {
         video.pause();
         video.currentTime = 0; // Optional: Reset video when not active
@@ -65,7 +87,7 @@ export default function Hero() {
             });
           } else {
             if (videoRefs.current[currentVideoIndex]) {
-              videoRefs.current[currentVideoIndex]?.play().catch(() => {});
+              videoRefs.current[currentVideoIndex]?.play().catch(() => { });
             }
           }
         });
@@ -203,8 +225,8 @@ export default function Hero() {
             className="w-full h-full relative"
             style={{ width: `${100 / featuredProjects.length}%` }}
           >
-            {/* Video Background */}
-            {project.heroVideoUrl ? (
+            {/* Video or Image Background */}
+            {project.heroVideoUrl && !/\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i.test(project.heroVideoUrl) ? (
               <video
                 ref={(el) => {
                   videoRefs.current[index] = el;
@@ -221,9 +243,11 @@ export default function Hero() {
               <div
                 className="absolute inset-0 bg-cover bg-center pointer-events-none"
                 style={{
-                  backgroundImage: project.projectThumbnailUrl
-                    ? `url(${getFileUrl(project.projectThumbnailUrl)})`
-                    : "none",
+                  backgroundImage: project.heroVideoUrl && /\.(jpe?g|png|webp|avif|gif|svg)(\?.*)?$/i.test(project.heroVideoUrl)
+                    ? `url(${getFileUrl(project.heroVideoUrl)})`
+                    : project.projectThumbnailUrl
+                      ? `url(${getFileUrl(project.projectThumbnailUrl)})`
+                      : "none",
                   backgroundColor: "#000",
                 }}
               />
@@ -259,29 +283,77 @@ export default function Hero() {
                 </div>
               )}
 
-              <Link
-                href={`/project/${project._id}`}
-                className="mb-2"
-                onClick={(e) =>
-                  isDragging && dragOffset !== 0 ? e.preventDefault() : null
-                }
-              >
-                <button className="group pointer-events-auto relative overflow-hidden bg-gradient-to-r from-red-600 via-red-700 to-red-600 hover:from-red-700 hover:via-red-800 hover:to-red-700 text-white font-bold py-3 px-8 md:py-4 md:px-12 rounded-full text-base md:text-lg transition-all duration-500 flex items-center gap-3 shadow-2xl hover:shadow-red-500/60 hover:scale-110 active:scale-95">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                  <div className="relative z-10 w-8 h-8 bg-white/25 group-hover:bg-white/35 rounded-full flex items-center justify-center transition-all duration-300 group-hover:rotate-12 group-hover:scale-125">
-                    <svg
-                      className="w-5 h-5 ml-0.5"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
+              {/* Action Button: Subscribe to Watch (Border Magic) for paid vs Watch for free */}
+              {(() => {
+                const hasLockedContent = Boolean(
+                  project.episodes &&
+                  project.episodes.length > 0 &&
+                  project.episodes.some((ep) => ep.locked === true)
+                );
+                const isSubscriptionRequired = hasLockedContent && project.hasAccess !== true;
+
+                if (isSubscriptionRequired) {
+                  return (
+                    <Link
+                      href={`/project/${project._id}`}
+                      className="mb-2 block focus:outline-none"
+                      onClick={(e) =>
+                        isDragging && dragOffset !== 0 ? e.preventDefault() : null
+                      }
                     >
-                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                    </svg>
-                  </div>
-                  <span className="relative z-10 text-white font-bold tracking-wide">
-                    Watch
-                  </span>
-                </button>
-              </Link>
+                      <button className="group pointer-events-auto relative inline-flex h-12 md:h-14 overflow-hidden rounded-full p-[1.5px] focus:outline-none transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.35)] hover:shadow-[0_0_35px_rgba(239,68,68,0.65)]">
+                        <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#ff3355_0%,#ef4444_25%,#7f1d1d_50%,#ef4444_75%,#ff3355_100%)]" />
+                        <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-zinc-950/90 group-hover:bg-zinc-900/90 px-6 py-2.5 md:px-8 md:py-3 text-sm md:text-base font-bold text-white backdrop-blur-3xl gap-2.5 transition-colors duration-200">
+                          <div className="relative z-10 w-7 h-7 md:w-8 md:h-8 bg-red-600/25 border border-red-500/40 rounded-full flex items-center justify-center text-red-400 group-hover:text-red-300 transition-colors">
+                            <svg
+                              className="w-3.5 h-3.5 md:w-4 md:h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                              />
+                            </svg>
+                          </div>
+                          <span className="relative z-10 tracking-wide font-bold text-white transition-colors">
+                            Subscribe to Watch
+                          </span>
+                        </span>
+                      </button>
+                    </Link>
+                  );
+                }
+
+                return (
+                  <Link
+                    href={`/project/${project._id}`}
+                    className="mb-2 block focus:outline-none"
+                    onClick={(e) =>
+                      isDragging && dragOffset !== 0 ? e.preventDefault() : null
+                    }
+                  >
+                    <button className="group pointer-events-auto relative overflow-hidden bg-gradient-to-r from-red-600 via-red-700 to-red-600 hover:from-red-700 hover:via-red-800 hover:to-red-700 text-white font-bold py-3 px-8 md:py-4 md:px-12 rounded-full text-base md:text-lg transition-all duration-500 flex items-center gap-3 shadow-2xl hover:shadow-red-500/60 hover:scale-110 active:scale-95">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                      <div className="relative z-10 w-8 h-8 bg-white/25 group-hover:bg-white/35 rounded-full flex items-center justify-center transition-all duration-300 group-hover:rotate-12 group-hover:scale-125">
+                        <svg
+                          className="w-5 h-5 ml-0.5"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                        </svg>
+                      </div>
+                      <span className="relative z-10 text-white font-bold tracking-wide">
+                        Watch
+                      </span>
+                    </button>
+                  </Link>
+                );
+              })()}
             </div>
 
             {/* Slide Project Info - Bottom Left */}

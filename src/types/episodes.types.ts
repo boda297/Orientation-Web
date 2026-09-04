@@ -31,6 +31,7 @@ export interface IEpisode {
   episodeUrl: string;
   episodeOrder: string | number;
   duration?: string | number;
+  locked?: boolean;
 }
 
 export type Episode = IEpisode;

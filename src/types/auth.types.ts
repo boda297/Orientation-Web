@@ -37,6 +37,57 @@ export interface ResetPasswordPayload {
   newPassword: string;
 }
 
+export type SocialProvider = "google" | "facebook" | "apple";
+
+export interface SocialAuthPayload {
+  provider: SocialProvider;
+  idToken?: string;
+  accessToken?: string;
+  authorizationCode?: string;
+  email?: string;
+  username?: string;
+  fullName?: string;
+  user?: {
+    name?: {
+      firstName?: string;
+      lastName?: string;
+    };
+    email?: string;
+  };
+}
+
+export interface GoogleMobileAuthPayload {
+  idToken: string;
+}
+
+export interface AppleMobileAuthPayload {
+  identityToken: string;
+  email?: string;
+  name?: {
+    firstName?: string;
+    lastName?: string;
+  };
+  firstName?: string;
+  lastName?: string;
+  userIdentifier?: string;
+  authorizationCode?: string;
+}
+
+export interface AppleAuthResponse {
+  authorization: {
+    code: string;
+    id_token: string;
+    state?: string;
+  };
+  user?: {
+    name?: {
+      firstName?: string;
+      lastName?: string;
+    };
+    email?: string;
+  };
+}
+
 // ==========================================
 // 🗄️ Data Interface
 // ==========================================

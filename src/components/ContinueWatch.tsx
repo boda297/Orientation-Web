@@ -38,6 +38,10 @@ export function saveWatchProgress(entry: WatchHistoryEntry, syncToBackend: boole
     const trimmed = history.slice(0, 20);
     localStorage.setItem('watchHistory', JSON.stringify(trimmed));
 
+    // Dispatch event to inform all components instantly
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new CustomEvent('watch-progress-saved', { detail: entry }));
+
     // Send HTTP request to backend ONLY when explicitly requested (on pause or close)
     if (syncToBackend && tokenStorage.isValid() && entry.episodeId) {
       watchHistoryApi.updateProgress({
@@ -68,14 +72,10 @@ export function removeWatchProgress(episodeId: string) {
     const history: WatchHistoryEntry[] = JSON.parse(localStorage.getItem('watchHistory') || '[]');
     const filtered = history.filter(h => h.episodeId !== episodeId);
     localStorage.setItem('watchHistory', JSON.stringify(filtered));
+    window.dispatchEvent(new Event('storage'));
   } catch (e) {
     console.warn('Failed to remove watch progress from localStorage:', e);
   }
-}
-
-// Helper to validate MongoDB ObjectId format (24 hex characters)
-function isValidMongoId(id: string): boolean {
-  return /^[a-fA-F0-9]{24}$/.test(id);
 }
 
 // Helper to get watch history from localStorage (0 network requests)
@@ -83,13 +83,13 @@ export function getWatchHistory(): WatchHistoryEntry[] {
   if (typeof window === 'undefined') return [];
   try {
     const history: WatchHistoryEntry[] = JSON.parse(localStorage.getItem('watchHistory') || '[]');
-    // Filter out completed (>95%), and entries with invalid projectId
+    // Filter out completed (>95%), and entries with valid duration & projectId
     const valid = history
       .filter(h =>
         h.duration > 0 &&
         (h.currentTime / h.duration) < 0.95 &&
         h.projectId &&
-        isValidMongoId(h.projectId)
+        h.projectId.trim().length > 0
       )
       .sort((a, b) => b.timestamp - a.timestamp);
 
@@ -97,7 +97,6 @@ export function getWatchHistory(): WatchHistoryEntry[] {
     if (valid.length !== history.length) {
       localStorage.setItem('watchHistory', JSON.stringify(valid));
     }
-
     return valid;
   } catch {
     return [];
@@ -108,26 +107,18 @@ export function getWatchHistory(): WatchHistoryEntry[] {
 export function clearWatchHistory() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('watchHistory');
+  window.dispatchEvent(new Event('storage'));
 }
 
 export default function ContinueWatch() {
   const [items, setItems] = useState<WatchHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
     const fetchHistory = async () => {
       setHasMounted(true);
       const authenticated = tokenStorage.isValid();
-      setIsLoggedIn(authenticated);
-
-      // Completely invisible for guest users
-      if (!authenticated) {
-        setItems([]);
-        setLoading(false);
-        return;
-      }
 
       // 1. Local-First: Check localStorage immediately (0 network requests)
       const localHistory = getWatchHistory();
@@ -137,68 +128,71 @@ export default function ContinueWatch() {
         return;
       }
 
-      // 2. Only if local storage is empty, fetch once from backend to seed local cache (e.g. new device/browser)
-      try {
-        setLoading(true);
-        const data = await watchHistoryApi.getContinueWatching(10);
-        if (data && data.items && data.items.length > 0) {
-          const apiItems: WatchHistoryEntry[] = data.items
-            .map((item: any) => {
-              // Extract project ID - try multiple paths from the API response
-              let projectId = '';
-              if (item.projectId) {
-                projectId = typeof item.projectId === 'object' ? item.projectId._id || item.projectId.id || '' : item.projectId;
-              } else if (item.project) {
-                projectId = typeof item.project === 'object' ? item.project._id || item.project.id || '' : item.project;
-              } else if (typeof item.contentId === 'object' && item.contentId) {
-                projectId = item.contentId.project || item.contentId._id || item.contentId.id || '';
-              } else if (typeof item.contentId === 'string') {
-                projectId = item.contentId;
-              }
+      // 2. If local storage is empty and authenticated, fetch from backend
+      if (authenticated) {
+        try {
+          const data = await watchHistoryApi.getContinueWatching(10);
+          if (data && data.items && data.items.length > 0) {
+            const apiItems: WatchHistoryEntry[] = data.items
+              .map((item: any) => {
+                let projectId = '';
+                if (item.projectId) {
+                  projectId = typeof item.projectId === 'object' ? item.projectId._id || item.projectId.id || '' : item.projectId;
+                } else if (item.project) {
+                  projectId = typeof item.project === 'object' ? item.project._id || item.project.id || '' : item.project;
+                } else if (typeof item.contentId === 'object' && item.contentId) {
+                  projectId = item.contentId.project || item.contentId._id || item.contentId.id || '';
+                } else if (typeof item.contentId === 'string') {
+                  projectId = item.contentId;
+                }
 
-              return {
-                episodeId: item._id || '',
-                projectId: String(projectId),
-                projectTitle: item.projectTitle || '',
-                episodeTitle: item.contentTitle || 'Untitled',
-                thumbnail: item.contentThumbnail || '',
-                currentTime: item.currentTime || 0,
-                duration: item.duration || 1,
-                timestamp: item.updatedAt ? new Date(item.updatedAt).getTime() : Date.now(),
-              };
-            })
-            .filter((item: WatchHistoryEntry) => item.projectId && isValidMongoId(item.projectId));
+                return {
+                  episodeId: item._id || '',
+                  projectId: String(projectId),
+                  projectTitle: item.projectTitle || '',
+                  episodeTitle: item.contentTitle || 'Untitled',
+                  thumbnail: item.contentThumbnail || '',
+                  currentTime: item.currentTime || 0,
+                  duration: item.duration || 1,
+                  timestamp: item.updatedAt ? new Date(item.updatedAt).getTime() : Date.now(),
+                };
+              })
+              .filter((item: WatchHistoryEntry) => item.projectId && item.projectId.trim().length > 0);
 
-          if (apiItems.length > 0) {
-            setItems(apiItems);
-            localStorage.setItem('watchHistory', JSON.stringify(apiItems));
-            setLoading(false);
-            return;
+            if (apiItems.length > 0) {
+              setItems(apiItems);
+              localStorage.setItem('watchHistory', JSON.stringify(apiItems));
+              setLoading(false);
+              return;
+            }
           }
+        } catch (error) {
+          console.warn('Failed to fetch continue watching from server:', error);
         }
-      } catch (error) {
-        console.warn('Failed to fetch continue watching from server:', error);
-      } finally {
-        setLoading(false);
       }
+
+      setItems([]);
+      setLoading(false);
     };
 
     fetchHistory();
 
     window.addEventListener('auth-change', fetchHistory);
     window.addEventListener('storage', fetchHistory);
+    window.addEventListener('watch-progress-saved', fetchHistory);
     return () => {
       window.removeEventListener('auth-change', fetchHistory);
       window.removeEventListener('storage', fetchHistory);
+      window.removeEventListener('watch-progress-saved', fetchHistory);
     };
   }, []);
 
-  if (!hasMounted || !isLoggedIn) {
-    return null; // Don't show anything to guest users
+  if (!hasMounted) {
+    return null;
   }
 
   if (loading) {
-    return null; // Local-first loading is instant, avoid layout shifts
+    return null;
   }
 
   if (items.length === 0) {
